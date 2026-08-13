@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { apiFetch, apiFetchOrNull, type Atendimento, type Profissional } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { hora, reais } from "@/lib/formato";
+import { data as formatarData, hora, reais } from "@/lib/formato";
+import { AgendaSemana } from "@/components/agenda-semana";
 import { formatarTelefone } from "@/lib/telefone";
 import { alterarStatus } from "@/lib/actions/agenda";
 import { AppShell, PageHeader } from "@/components/app-shell";
@@ -36,9 +37,22 @@ function deslocar(dia: string, dias: number) {
   return d.toISOString().slice(0, 10);
 }
 
-/** Mantém a profissional escolhida ao navegar entre os dias. */
-function filtroNaUrl(prof: string) {
-  return prof ? `&prof=${prof}` : "";
+/** Mantém a profissional escolhida e a visão ao navegar entre os dias. */
+function filtroNaUrl(prof: string, vista?: boolean) {
+  return `${prof ? `&prof=${prof}` : ""}${vista ? "&vista=semana" : ""}`;
+}
+
+/** Domingo a sábado da semana que contém o dia informado. */
+function semanaDe(dia: string) {
+  const d = new Date(`${dia}T12:00:00Z`);
+  const domingo = new Date(d);
+  domingo.setUTCDate(d.getUTCDate() - d.getUTCDay());
+
+  return Array.from({ length: 7 }, (_, i) => {
+    const x = new Date(domingo);
+    x.setUTCDate(domingo.getUTCDate() + i);
+    return x.toISOString().slice(0, 10);
+  });
 }
 
 function porExtenso(dia: string) {
@@ -61,6 +75,7 @@ export default async function AgendaPage(props: PageProps<"/agenda">) {
   const bruto = typeof params.dia === "string" ? params.dia : "";
   const dia = ehDataValida(bruto) ? bruto : hoje();
   const profFiltro = typeof params.prof === "string" ? params.prof : "";
+  const semana = params.vista === "semana";
 
   // Quem só atende vê a própria agenda; quem organiza a agenda da clínica escolhe.
   // Esta variável controla apenas a INTERFACE — a restrição de verdade é aplicada
@@ -70,9 +85,14 @@ export default async function AgendaPage(props: PageProps<"/agenda">) {
     !session.roles.includes("OWNER") &&
     !session.roles.includes("SECRETARY");
 
-  // A API recebe a janela do dia inteiro no fuso da clínica.
-  const de = `${dia}T00:00:00-03:00`;
-  const ate = `${deslocar(dia, 1)}T00:00:00-03:00`;
+  // Na visão semanal a janela vai de domingo a sábado; na diária, só o dia.
+  const diasDaSemana = semanaDe(dia);
+  const primeiroDia = semana ? diasDaSemana[0] : dia;
+  const ultimoDia = semana ? deslocar(diasDaSemana[6], 1) : deslocar(dia, 1);
+
+  // A API recebe a janela no fuso da clínica.
+  const de = `${primeiroDia}T00:00:00-03:00`;
+  const ate = `${ultimoDia}T00:00:00-03:00`;
   const filtro = !soPropriaAgenda && profFiltro ? `&profissionalId=${profFiltro}` : "";
 
   const [agenda, profissionais, minhaFicha] = await Promise.all([
@@ -116,7 +136,11 @@ export default async function AgendaPage(props: PageProps<"/agenda">) {
     >
       <PageHeader
         titulo={soPropriaAgenda ? "Minha agenda" : "Agenda"}
-        descricao={`${porExtenso(dia)} · ${ativos.length} atendimento${ativos.length === 1 ? "" : "s"}`}
+        descricao={
+          semana
+            ? `Semana de ${formatarData(diasDaSemana[0])} a ${formatarData(diasDaSemana[6])} · ${ativos.length} atendimento${ativos.length === 1 ? "" : "s"}`
+            : `${porExtenso(dia)} · ${ativos.length} atendimento${ativos.length === 1 ? "" : "s"}`
+        }
         acao={
           podeAgendar ? (
             <Link href={`/agenda/novo?dia=${dia}`}>
@@ -126,22 +150,52 @@ export default async function AgendaPage(props: PageProps<"/agenda">) {
         }
       />
 
-      <div className="mb-5 flex items-center gap-2">
-        <Link href={`/agenda?dia=${deslocar(dia, -1)}${filtroNaUrl(profFiltro)}`}>
-          <Button variant="secondary" size="sm">
-            ← Anterior
-          </Button>
-        </Link>
-        <Link href={`/agenda?dia=${hoje()}${filtroNaUrl(profFiltro)}`}>
-          <Button variant="ghost" size="sm">
-            Hoje
-          </Button>
-        </Link>
-        <Link href={`/agenda?dia=${deslocar(dia, 1)}${filtroNaUrl(profFiltro)}`}>
-          <Button variant="secondary" size="sm">
-            Próximo →
-          </Button>
-        </Link>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/agenda?dia=${deslocar(dia, semana ? -7 : -1)}${filtroNaUrl(profFiltro, semana)}`}
+          >
+            <Button variant="secondary" size="sm">
+              ← Anterior
+            </Button>
+          </Link>
+          <Link href={`/agenda?dia=${hoje()}${filtroNaUrl(profFiltro, semana)}`}>
+            <Button variant="ghost" size="sm">
+              Hoje
+            </Button>
+          </Link>
+          <Link
+            href={`/agenda?dia=${deslocar(dia, semana ? 7 : 1)}${filtroNaUrl(profFiltro, semana)}`}
+          >
+            <Button variant="secondary" size="sm">
+              Próximo →
+            </Button>
+          </Link>
+        </div>
+
+        {/* Dia ou semana: a recepção quer a lista do dia; a dona quer enxergar a
+            ocupação da semana. São perguntas diferentes sobre o mesmo dado. */}
+        <div className="flex rounded-full border border-border bg-canvas p-0.5">
+          {[
+            { rotulo: "Dia", ativo: !semana, href: `/agenda?dia=${dia}${filtroNaUrl(profFiltro)}` },
+            {
+              rotulo: "Semana",
+              ativo: semana,
+              href: `/agenda?dia=${dia}${filtroNaUrl(profFiltro, true)}`,
+            },
+          ].map((v) => (
+            <Link
+              key={v.rotulo}
+              href={v.href}
+              className={cn(
+                "rounded-full px-4 py-1 text-sm transition-colors",
+                v.ativo ? "bg-primary-soft font-medium text-primary" : "text-ink-muted hover:text-ink",
+              )}
+            >
+              {v.rotulo}
+            </Link>
+          ))}
+        </div>
       </div>
 
       {!soPropriaAgenda && profissionais.length > 0 && (
@@ -174,7 +228,14 @@ export default async function AgendaPage(props: PageProps<"/agenda">) {
         </div>
       )}
 
-      {agenda.length === 0 ? (
+      {semana ? (
+        <AgendaSemana
+          dias={diasDaSemana}
+          atendimentos={agenda}
+          diaDestacado={dia}
+          podeAgendar={podeAgendar}
+        />
+      ) : agenda.length === 0 ? (
         <EmptyState
           title="Nenhum atendimento neste dia"
           description="Use as setas para navegar entre os dias ou agende um novo atendimento."

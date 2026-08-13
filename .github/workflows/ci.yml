@@ -57,6 +57,12 @@ jobs:
       - name: Instalar
         run: npm ci
 
+      - name: Gerar tipos de rota
+        # PageProps e LayoutProps sao gerados pelo Next em .next/types, que nao vai
+        # para o repositorio. Sem este passo o tsc nao os encontra no runner — o que
+        # nao aparece na maquina de quem ja rodou o dev server.
+        run: npx next typegen
+
       - name: Tipos
         run: npx tsc --noEmit
 

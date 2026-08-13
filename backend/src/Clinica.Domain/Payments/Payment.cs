@@ -27,8 +27,21 @@ public enum PaymentMethod
 /// </summary>
 public class Payment : TenantEntity
 {
-    public Guid AppointmentId { get; set; }
+    /// <summary>
+    /// Cobrança de um atendimento avulso.
+    ///
+    /// Opcional desde a Fase G: quando a paciente fecha um protocolo, as cobranças
+    /// nascem do orçamento e ainda não existe agendamento para amarrá-las.
+    /// </summary>
+    public Guid? AppointmentId { get; set; }
     public Appointment? Appointment { get; set; }
+
+    /// <summary>Cobrança que veio do fechamento de um protocolo.</summary>
+    public Guid? TreatmentPlanId { get; set; }
+
+    /// <summary>Parcela N de M. Nulo em cobrança única.</summary>
+    public int? InstallmentNumber { get; set; }
+    public int? InstallmentCount { get; set; }
 
     public decimal Amount { get; set; }
 

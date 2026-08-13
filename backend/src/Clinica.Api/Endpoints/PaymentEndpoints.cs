@@ -37,10 +37,22 @@ public static class PaymentEndpoints
                 .Select(p => new PaymentResponse(
                     p.Id,
                     p.AppointmentId,
-                    p.Appointment!.Patient!.FullName,
-                    p.Appointment.Patient.PhoneE164,
-                    p.Appointment.Procedure!.Name,
-                    p.Appointment.StartsAt,
+                    p.TreatmentPlanId,
+                    // Cobrança de protocolo não tem atendimento amarrado: o nome vem do
+                    // paciente do protocolo.
+                    p.Appointment != null
+                        ? p.Appointment.Patient!.FullName
+                        : db.TreatmentPlans
+                            .Where(t => t.Id == p.TreatmentPlanId)
+                            .Select(t => t.Patient!.FullName)
+                            .FirstOrDefault() ?? "—",
+                    p.Appointment != null ? p.Appointment.Patient!.PhoneE164 : "",
+                    p.Appointment != null
+                        ? p.Appointment.Procedure!.Name
+                        : (p.InstallmentCount > 1
+                            ? $"Protocolo — parcela {p.InstallmentNumber}/{p.InstallmentCount}"
+                            : "Protocolo"),
+                    p.Appointment != null ? p.Appointment.StartsAt : (DateTimeOffset?)null,
                     p.Amount,
                     p.DueDate,
                     p.Status.ToString(),
@@ -168,11 +180,12 @@ public record SettlePaymentRequest(string Method, DateTimeOffset? PaidAt);
 
 public record PaymentResponse(
     Guid Id,
-    Guid AppointmentId,
+    Guid? AppointmentId,
+    Guid? TreatmentPlanId,
     string PatientName,
     string PatientPhone,
     string ProcedureName,
-    DateTimeOffset AppointmentAt,
+    DateTimeOffset? AppointmentAt,
     decimal Amount,
     DateOnly DueDate,
     string Status,

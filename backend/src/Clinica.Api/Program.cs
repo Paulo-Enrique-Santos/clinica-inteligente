@@ -97,6 +97,7 @@ app.MapPaymentEndpoints();
 app.MapStockEndpoints();
 app.MapTeamEndpoints();
 app.MapScheduleEndpoints();
+app.MapTreatmentPlanEndpoints();
 
 app.Run();
 

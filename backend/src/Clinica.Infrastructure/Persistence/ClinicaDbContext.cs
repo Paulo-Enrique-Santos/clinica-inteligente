@@ -5,6 +5,7 @@ using Clinica.Domain.Payments;
 using Clinica.Domain.Procedures;
 using Clinica.Domain.Professionals;
 using Clinica.Domain.Stock;
+using Clinica.Domain.Treatments;
 using Clinica.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -32,6 +33,8 @@ public class ClinicaDbContext(DbContextOptions<ClinicaDbContext> options, ITenan
     public DbSet<Procedure> Procedures => Set<Procedure>();
     public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<TreatmentPlan> TreatmentPlans => Set<TreatmentPlan>();
+    public DbSet<PlanItem> PlanItems => Set<PlanItem>();
     public DbSet<StockItem> StockItems => Set<StockItem>();
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
 

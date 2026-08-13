@@ -175,17 +175,44 @@ export type Atendimento = {
 
 export type Cobranca = {
   id: string;
-  appointmentId: string;
+  appointmentId: string | null;
+  treatmentPlanId: string | null;
   patientName: string;
   patientPhone: string;
   procedureName: string;
-  appointmentAt: string;
+  appointmentAt: string | null;
   amount: number;
   dueDate: string;
   status: string;
   overdue: boolean;
   method: string | null;
   paidAt: string | null;
+};
+
+export type ItemDoProtocolo = {
+  id: string;
+  procedureId: string;
+  procedureName: string;
+  sessions: number;
+  intervalDays: number | null;
+  startAfterDays: number;
+  unitPrice: number;
+  total: number;
+  status: string;
+  notes: string | null;
+};
+
+export type Protocolo = {
+  id: string;
+  patientId: string;
+  patientName: string;
+  professionalId: string;
+  professionalName: string;
+  status: string;
+  notes: string | null;
+  createdAt: string;
+  approvedAt: string | null;
+  items: ItemDoProtocolo[];
 };
 
 export type MembroDaEquipe = {

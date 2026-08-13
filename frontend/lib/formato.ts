@@ -1,5 +1,15 @@
 const MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
+/**
+ * Data de hoje no fuso da clínica (-03:00), em yyyy-MM-dd.
+ *
+ * Vive aqui, e não dentro das telas, porque ler o relógio durante o render torna o
+ * componente impuro — e porque a mesma conta era repetida em mais de um lugar.
+ */
+export function hojeNaClinica(): string {
+  return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 export function reais(valor: number): string {
   return MOEDA.format(valor);
 }

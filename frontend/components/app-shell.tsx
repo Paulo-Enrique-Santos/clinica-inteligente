@@ -15,6 +15,7 @@ const SECOES = [
   { href: "/agenda", label: "Agenda", pronto: true, papeis: null },
   { href: "/expediente", label: "Expediente", pronto: true, papeis: null },
   { href: "/pacientes", label: "Pacientes", pronto: true, papeis: null },
+  { href: "/protocolos", label: "Protocolos", pronto: true, papeis: null },
   { href: "/procedimentos", label: "Procedimentos", pronto: true, papeis: null },
   // Financeiro e Configurações somem para quem não pode entrar: mostrar link que
   // leva a "sem acesso" é convidar a pessoa a bater na porta fechada todo dia.

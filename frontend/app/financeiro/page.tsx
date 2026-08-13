@@ -85,7 +85,8 @@ export default async function FinanceiroPage(props: PageProps<"/financeiro">) {
                     {c.procedureName} · vence {data(c.dueDate)}
                   </p>
                   <p className="mt-1 text-xs text-ink-subtle">
-                    {formatarTelefone(c.patientPhone)}
+                    {/* Cobrança de protocolo não tem telefone amarrado ao atendimento. */}
+                    {c.patientPhone ? formatarTelefone(c.patientPhone) : "—"}
                     {c.method && ` · pago em ${c.method}`}
                   </p>
                 </div>

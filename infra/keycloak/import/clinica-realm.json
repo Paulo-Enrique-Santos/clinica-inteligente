@@ -13,7 +13,7 @@
   "loginTheme": "clinica",
 
   "internationalizationEnabled": true,
-  "supportedLocales": ["pt-BR", "en"],
+  "supportedLocales": ["pt-BR"],
   "defaultLocale": "pt-BR",
 
   "accessTokenLifespan": 900,

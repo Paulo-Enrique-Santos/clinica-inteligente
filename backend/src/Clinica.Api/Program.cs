@@ -87,6 +87,8 @@ app.MapPatientEndpoints();
 app.MapProfessionalEndpoints();
 app.MapProcedureEndpoints();
 app.MapAppointmentEndpoints();
+app.MapPaymentEndpoints();
+app.MapStockEndpoints();
 
 app.Run();
 

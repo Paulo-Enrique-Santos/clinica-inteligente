@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using Clinica.Domain.Anamnesis;
 using Clinica.Domain.Appointments;
 using Clinica.Domain.Patients;
 using Clinica.Domain.Payments;
@@ -34,6 +35,8 @@ public class ClinicaDbContext(DbContextOptions<ClinicaDbContext> options, ITenan
     public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<TreatmentPlan> TreatmentPlans => Set<TreatmentPlan>();
+    public DbSet<AnamnesisLink> AnamnesisLinks => Set<AnamnesisLink>();
+    public DbSet<AnamnesisResponse> AnamnesisResponses => Set<AnamnesisResponse>();
     public DbSet<PlanItem> PlanItems => Set<PlanItem>();
     public DbSet<StockItem> StockItems => Set<StockItem>();
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();

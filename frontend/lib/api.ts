@@ -38,6 +38,36 @@ export async function apiFetchOrNull<T>(path: string): Promise<T | null> {
   return resposta.json() as Promise<T>;
 }
 
+/**
+ * Chamadas públicas: a ficha de anamnese, que a paciente abre sem login.
+ *
+ * Não envia token porque não há sessão — quem autoriza é o token do link, que já vai na
+ * própria URL.
+ */
+export async function publicFetch<T>(path: string): Promise<T | null> {
+  const r = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
+  return r.ok ? ((await r.json()) as T) : null;
+}
+
+export async function publicSend(
+  path: string,
+  body: unknown,
+): Promise<{ ok: boolean; problem?: ProblemDetails }> {
+  const r = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (r.ok) return { ok: true };
+
+  try {
+    return { ok: false, problem: (await r.json()) as ProblemDetails };
+  } catch {
+    return { ok: false, problem: { title: `Erro ${r.status}` } };
+  }
+}
+
 /** Erro de rede: a API não respondeu. Distinto de "respondeu com erro". */
 export class ApiForaDoArError extends Error {
   constructor(path: string, causa: unknown) {

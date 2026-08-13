@@ -15,6 +15,21 @@ namespace Clinica.Tests;
 [Collection(nameof(PostgresCollection))]
 public class RlsSchemaGuardTests(PostgresFixture postgres)
 {
+    /// <summary>
+    /// Exceções conscientes. Entrar nesta lista exige justificativa — é o ponto em que
+    /// alguém precisa parar e explicar por que uma tabela com <c>tenant_id</c> fica fora
+    /// da regra do sistema inteiro.
+    /// </summary>
+    private static readonly Dictionary<string, string> Excecoes = new()
+    {
+        ["anamnesis_links"] =
+            "E a tabela pela qual a clinica e DESCOBERTA: a paciente abre o link sem estar " +
+            "logada, entao nao existe tenant para filtrar antes de o token ser lido. O que " +
+            "protege a tabela e o proprio token (32 bytes aleatorios, com validade e uso " +
+            "unico), e ela nao guarda nada sensivel — so o vinculo entre token, clinica e " +
+            "paciente. A ficha preenchida, essa sim, fica sob RLS como todo dado de saude.",
+    };
+
     [Fact]
     public async Task Toda_tabela_com_tenant_id_tem_rls_ativo_forcado_e_com_policy()
     {
@@ -52,6 +67,11 @@ public class RlsSchemaGuardTests(PostgresFixture postgres)
             var rlsAtivo = reader.GetBoolean(1);
             var rlsForcado = reader.GetBoolean(2);
             var policies = reader.GetInt64(3);
+
+            if (Excecoes.ContainsKey(tabela))
+            {
+                continue;
+            }
 
             tabelasVerificadas++;
 

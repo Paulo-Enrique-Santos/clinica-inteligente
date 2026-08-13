@@ -98,6 +98,7 @@ app.MapStockEndpoints();
 app.MapTeamEndpoints();
 app.MapScheduleEndpoints();
 app.MapTreatmentPlanEndpoints();
+app.MapAnamnesisEndpoints();
 
 app.Run();
 

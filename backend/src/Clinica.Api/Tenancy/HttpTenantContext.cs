@@ -15,11 +15,37 @@ public sealed class HttpTenantContext(IHttpContextAccessor accessor) : ITenantCo
 
     private bool _resolved;
     private Guid? _cached;
+    private Guid? _assumido;
+
+    /// <summary>
+    /// Assume uma clínica sem token de usuário. Existe para UM caso: a ficha de anamnese
+    /// que a paciente preenche por link, sem login.
+    ///
+    /// A porta é estreita de propósito — só funciona quando não há usuário autenticado, e
+    /// só é chamada depois de o link ter sido validado (token aleatório, com validade e
+    /// uso único). Se houvesse claim, o claim manda; nenhuma requisição autenticada
+    /// consegue trocar de clínica por aqui.
+    /// </summary>
+    public void AssumirPorLinkValidado(Guid tenantId)
+    {
+        if (Value is not null)
+        {
+            throw new InvalidOperationException(
+                "Requisicao ja tem tenant pelo token; assumir outro nao e permitido.");
+        }
+
+        _assumido = tenantId;
+    }
 
     private Guid? Value
     {
         get
         {
+            if (_assumido is { } assumido)
+            {
+                return assumido;
+            }
+
             // Escopo de requisicao: resolve uma vez, reusa. Evita reparsear o claim a
             // cada consulta do filtro global.
             if (_resolved)

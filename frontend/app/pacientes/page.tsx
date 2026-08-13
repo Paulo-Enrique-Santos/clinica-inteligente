@@ -77,6 +77,7 @@ export default async function PacientesPage() {
                 <th className="px-5 py-3 text-xs font-medium uppercase tracking-wide text-ink-subtle">
                   Cadastro
                 </th>
+                <th className="px-5 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -95,6 +96,14 @@ export default async function PacientesPage() {
                   </td>
                   <td className="px-5 py-3.5 text-ink-subtle">
                     {new Date(p.createdAt).toLocaleDateString("pt-BR")}
+                  </td>
+                  <td className="px-5 py-3.5 text-right">
+                    <Link
+                      href={`/pacientes/${p.id}`}
+                      className="text-sm text-primary hover:underline"
+                    >
+                      Detalhes
+                    </Link>
                   </td>
                 </tr>
               ))}

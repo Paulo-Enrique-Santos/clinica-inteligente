@@ -1,4 +1,5 @@
 using Clinica.Domain.Patients;
+using Clinica.Domain.Tenancy;
 using Clinica.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -53,6 +54,83 @@ public static class PatientEndpoints
                 : Results.Ok(PatientResponse.From(patient));
         })
         .WithName("ObterPaciente");
+
+        group.MapGet("/{id:guid}/ficha", async (
+            Guid id,
+            ClinicaDbContext db,
+            IUserContext usuario,
+            CancellationToken ct) =>
+        {
+            var paciente = await db.Patients.FirstOrDefaultAsync(p => p.Id == id, ct);
+
+            if (paciente is null)
+            {
+                return Results.NotFound();
+            }
+
+            var atendimentos = await db.Appointments
+                .Where(a => a.PatientId == id)
+                .OrderByDescending(a => a.StartsAt)
+                .Select(a => new FichaAtendimento(
+                    a.Id,
+                    a.StartsAt,
+                    a.Procedure!.Name,
+                    a.Professional!.DisplayName,
+                    a.Status.ToString(),
+                    a.Price,
+                    a.ExecutionNotes))
+                .ToListAsync(ct);
+
+            var protocolos = await db.TreatmentPlans
+                .Where(p => p.PatientId == id)
+                .OrderByDescending(p => p.CreatedAt)
+                .Select(p => new FichaProtocolo(
+                    p.Id,
+                    p.Status.ToString(),
+                    p.CreatedAt,
+                    p.Professional!.DisplayName,
+                    p.Items
+                        .Where(i => i.Status != Clinica.Domain.Treatments.PlanItemStatus.Recusado)
+                        .Select(i => new FichaItem(i.Procedure!.Name, i.Sessions, i.UnitPrice * i.Sessions))
+                        .ToList()))
+                .ToListAsync(ct);
+
+            // Financeiro só para quem cuida do dinheiro: a doutora precisa do histórico
+            // clínico, não de quanto a paciente deve.
+            var podeVerFinanceiro = usuario.HasRole("OWNER") || usuario.HasRole("FINANCE");
+
+            var cobrancas = podeVerFinanceiro
+                ? await db.Payments
+                    .Where(p => (p.Appointment != null && p.Appointment.PatientId == id)
+                                || db.TreatmentPlans.Any(t => t.Id == p.TreatmentPlanId
+                                                              && t.PatientId == id))
+                    .OrderBy(p => p.DueDate)
+                    .Select(p => new FichaCobranca(
+                        p.Id,
+                        p.Amount,
+                        p.DueDate,
+                        p.Status.ToString(),
+                        p.Method == null ? null : p.Method.ToString(),
+                        p.InstallmentNumber,
+                        p.InstallmentCount))
+                    .ToListAsync(ct)
+                : [];
+
+            var anamnese = await db.AnamnesisResponses
+                .Where(a => a.PatientId == id)
+                .OrderByDescending(a => a.SubmittedAt)
+                .Select(a => new FichaAnamnese(a.SubmittedAt, a.ImageConsent, a.AnswersJson))
+                .FirstOrDefaultAsync(ct);
+
+            return Results.Ok(new FichaDaPaciente(
+                PatientResponse.From(paciente),
+                atendimentos,
+                protocolos,
+                cobrancas,
+                anamnese,
+                podeVerFinanceiro));
+        })
+        .WithName("ObterFichaDaPaciente");
 
         group.MapPost("/", async (
             CreatePatientRequest request,
@@ -114,6 +192,43 @@ public record CreatePatientRequest(
         return errors.Count == 0 ? null : errors;
     }
 }
+
+public record FichaAtendimento(
+    Guid Id,
+    DateTimeOffset StartsAt,
+    string ProcedureName,
+    string ProfessionalName,
+    string Status,
+    decimal Price,
+    string? ExecutionNotes);
+
+public record FichaItem(string ProcedureName, int Sessions, decimal Total);
+
+public record FichaProtocolo(
+    Guid Id,
+    string Status,
+    DateTimeOffset CreatedAt,
+    string ProfessionalName,
+    List<FichaItem> Items);
+
+public record FichaCobranca(
+    Guid Id,
+    decimal Amount,
+    DateOnly DueDate,
+    string Status,
+    string? Method,
+    int? InstallmentNumber,
+    int? InstallmentCount);
+
+public record FichaAnamnese(DateTimeOffset SubmittedAt, bool ImageConsent, string AnswersJson);
+
+public record FichaDaPaciente(
+    PatientResponse Patient,
+    List<FichaAtendimento> Appointments,
+    List<FichaProtocolo> Plans,
+    List<FichaCobranca> Payments,
+    FichaAnamnese? Anamnesis,
+    bool ShowsFinance);
 
 public record PatientResponse(
     Guid Id,

@@ -40,7 +40,7 @@ As migrations conectam como `clinica_owner` (dono das tabelas). A API conecta co
 ## Testes
 
 ```bash
-dotnet test backend/Clinica.slnx
+dotnet test backend/Clinica.sln
 ```
 
 Sobem um Postgres real via Testcontainers (Docker precisa estar rodando). O fixture recria

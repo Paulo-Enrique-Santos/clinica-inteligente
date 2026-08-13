@@ -9,6 +9,11 @@
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
   "verifyEmail": false,
+
+  "internationalizationEnabled": true,
+  "supportedLocales": ["pt-BR", "en"],
+  "defaultLocale": "pt-BR",
+
   "accessTokenLifespan": 900,
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 36000,

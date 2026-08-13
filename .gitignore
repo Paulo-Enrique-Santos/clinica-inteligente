@@ -1,0 +1,73 @@
+# ---------- Segredos (NUNCA commitar) ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+appsettings.Development.json
+appsettings.Local.json
+
+# ---------- .NET ----------
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+TestResults/
+*.coverage
+*.trx
+
+# ---------- Node / Next.js ----------
+node_modules/
+.next/
+out/
+build/
+dist/
+.turbo/
+*.tsbuildinfo
+.vercel
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+
+# ---------- Docker / infra local ----------
+docker-data/
+volumes/
+*.local.yml
+
+# ---------- WhatsApp Web (sessão pareada = credencial) ----------
+.wwebjs_auth/
+.wwebjs_cache/
+whatsapp-session/
+
+# ---------- Dados sensíveis / LGPD ----------
+# Nenhum dump de banco ou export de paciente entra no repositório.
+*.sql.gz
+*.dump
+dumps/
+uploads/
+
+# ---------- IDE / OS ----------
+.idea/
+.DS_Store
+Thumbs.db
+*.swp

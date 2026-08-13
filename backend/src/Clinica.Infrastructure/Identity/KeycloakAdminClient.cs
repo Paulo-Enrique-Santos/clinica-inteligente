@@ -147,6 +147,29 @@ public class KeycloakAdminClient(
         return id;
     }
 
+    /// <summary>
+    /// Remove a conta, conferindo antes que ela é mesmo da clínica de quem pediu.
+    ///
+    /// A conferência não é paranoia: o id vem da URL, e sem ela bastaria uma dona
+    /// descobrir o id de alguém de outra clínica para apagar essa pessoa.
+    /// </summary>
+    public async Task RemoverAsync(Guid tenantId, string usuarioId, CancellationToken ct = default)
+    {
+        await AutenticarAsync(ct);
+
+        var usuario = await http.GetFromJsonAsync<UsuarioKeycloak>($"{Base}/users/{usuarioId}", ct)
+            ?? throw new ContaNaoEncontradaException();
+
+        if (!PertenceA(usuario, tenantId))
+        {
+            // Mesma escolha do resto do sistema: para outra clínica, a conta não existe.
+            throw new ContaNaoEncontradaException();
+        }
+
+        var resposta = await http.DeleteAsync($"{Base}/users/{usuarioId}", ct);
+        resposta.EnsureSuccessStatusCode();
+    }
+
     private async Task AtribuirPapelAsync(string usuarioId, string papel, CancellationToken ct)
     {
         // Os papeis vem do endpoint de "atribuiveis a este usuario", e nao de
@@ -224,3 +247,6 @@ public class KeycloakAdminClient(
 
 public class ContaJaExisteException(string username)
     : Exception($"Ja existe uma conta com o usuario '{username}'.");
+
+public class ContaNaoEncontradaException()
+    : Exception("Conta nao encontrada nesta clinica.");

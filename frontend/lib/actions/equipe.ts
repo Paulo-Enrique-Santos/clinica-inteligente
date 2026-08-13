@@ -4,6 +4,11 @@ import { redirect } from "next/navigation";
 import { apiSend, mensagemDeErro } from "@/lib/api";
 import type { EstadoFormulario } from "@/lib/form";
 
+export async function removerMembroDaEquipe(formulario: FormData) {
+  await apiSend(`/team/${String(formulario.get("id") ?? "")}`, "DELETE");
+  redirect("/configuracoes");
+}
+
 export async function criarMembroDaEquipe(
   _anterior: EstadoFormulario,
   formulario: FormData,

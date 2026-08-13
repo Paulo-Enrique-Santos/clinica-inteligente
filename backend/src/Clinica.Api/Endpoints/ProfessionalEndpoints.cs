@@ -13,13 +13,18 @@ public static class ProfessionalEndpoints
             .RequireAuthorization()
             .WithTags("Profissionais");
 
-        group.MapGet("/", async (bool? incluirInativos, ClinicaDbContext db, CancellationToken ct) =>
+        group.MapGet("/", async (string? q, bool? incluirInativos, ClinicaDbContext db, CancellationToken ct) =>
         {
             var query = db.Professionals.AsQueryable();
 
             if (incluirInativos != true)
             {
                 query = query.Where(p => p.Active);
+            }
+
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                query = query.Where(p => EF.Functions.ILike(p.DisplayName, $"%{q.Trim()}%"));
             }
 
             var profissionais = await query

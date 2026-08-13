@@ -141,8 +141,9 @@ export type Procedimento = {
   name: string;
   durationMinutes: number;
   price: number;
-  suppliesCost: number;
-  margin: number;
+  /** Nulos para quem não pode ver custo — a API omite, não é a tela que esconde. */
+  suppliesCost: number | null;
+  margin: number | null;
   description: string | null;
   active: boolean;
 };

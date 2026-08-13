@@ -2,6 +2,7 @@ using Clinica.Domain.Professionals;
 using Clinica.Domain.Tenancy;
 using Clinica.Infrastructure.Identity;
 using Clinica.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace Clinica.Api.Endpoints;
 
@@ -87,6 +88,49 @@ public static class TeamEndpoints
             return Results.Created($"/team/{usuarioId}", new { id = usuarioId });
         })
         .WithName("CriarMembroDaEquipe");
+
+        group.MapDelete("/{id}", async (
+            string id,
+            KeycloakAdminClient keycloak,
+            ClinicaDbContext db,
+            ITenantContext tenant,
+            IUserContext usuario,
+            CancellationToken ct) =>
+        {
+            // Apagar a própria conta deixaria a dona sem acesso à clínica que ela paga,
+            // e sem ninguém que possa devolvê-lo.
+            if (id == usuario.UserId)
+            {
+                return Results.Problem(
+                    title: "Nao e possivel remover a propria conta",
+                    detail: "Peca a outra responsavel pela clinica, se houver.",
+                    statusCode: StatusCodes.Status409Conflict);
+            }
+
+            try
+            {
+                await keycloak.RemoverAsync(tenant.TenantId, id, ct);
+            }
+            catch (ContaNaoEncontradaException)
+            {
+                return Results.NotFound();
+            }
+
+            // A ficha de profissional NÃO é apagada: ela é referenciada pelos
+            // atendimentos já realizados, que são registro clínico e financeiro. Só
+            // perde o vínculo com o login e sai de atividade.
+            var ficha = await db.Professionals.FirstOrDefaultAsync(p => p.KeycloakUserId == id, ct);
+
+            if (ficha is not null)
+            {
+                ficha.KeycloakUserId = null;
+                ficha.Active = false;
+                await db.SaveChangesAsync(ct);
+            }
+
+            return Results.NoContent();
+        })
+        .WithName("RemoverMembroDaEquipe");
 
         return app;
     }

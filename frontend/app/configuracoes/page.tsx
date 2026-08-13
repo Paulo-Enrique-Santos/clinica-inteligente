@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { apiFetch, type MembroDaEquipe } from "@/lib/api";
 import { MATRIZ, PAPEIS, ROTULO_DE_ACESSO, TOM_DE_ACESSO, type Papel } from "@/lib/permissoes";
+import { removerMembroDaEquipe } from "@/lib/actions/equipe";
 import { AppShell, PageHeader } from "@/components/app-shell";
 import { Card, CardHeader, CardBody, EmptyState } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -72,6 +73,7 @@ export default async function ConfiguracoesPage() {
                 <th className="px-5 py-3 text-xs font-medium uppercase tracking-wide text-ink-subtle">
                   Papel
                 </th>
+                <th className="px-5 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -97,6 +99,21 @@ export default async function ConfiguracoesPage() {
                           {NOME_DO_PAPEL[r] ?? r}
                         </Badge>
                       ))
+                    )}
+                  </td>
+                  <td className="px-5 py-3.5 text-right">
+                    {/* A própria conta não aparece com botão: removê-la deixaria a
+                        dona sem acesso à clínica que ela paga. O backend recusa
+                        também, mas oferecer e depois negar seria maldade. */}
+                    {m.roles.includes("OWNER") ? (
+                      <span className="text-xs text-ink-subtle">—</span>
+                    ) : (
+                      <form action={removerMembroDaEquipe}>
+                        <input type="hidden" name="id" value={m.id} />
+                        <Button type="submit" size="sm" variant="ghost">
+                          Remover
+                        </Button>
+                      </form>
                     )}
                   </td>
                 </tr>

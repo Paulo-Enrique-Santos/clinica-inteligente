@@ -1,4 +1,5 @@
 using Clinica.Domain.Procedures;
+using Clinica.Domain.Tenancy;
 using Clinica.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,7 +13,12 @@ public static class ProcedureEndpoints
             .RequireAuthorization()
             .WithTags("Procedimentos");
 
-        group.MapGet("/", async (bool? incluirInativos, ClinicaDbContext db, CancellationToken ct) =>
+        group.MapGet("/", async (
+            string? q,
+            bool? incluirInativos,
+            ClinicaDbContext db,
+            IUserContext usuario,
+            CancellationToken ct) =>
         {
             var query = db.Procedures.AsQueryable();
 
@@ -21,21 +27,32 @@ public static class ProcedureEndpoints
                 query = query.Where(p => p.Active);
             }
 
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                query = query.Where(p => EF.Functions.ILike(p.Name, $"%{q.Trim()}%"));
+            }
+
             var procedimentos = await query
                 .OrderBy(p => p.Name)
-                .Select(p => ProcedureResponse.From(p))
+                .Take(50)
                 .ToListAsync(ct);
 
-            return Results.Ok(procedimentos);
+            return Results.Ok(procedimentos
+                .Select(p => ProcedureResponse.From(p, PodeVerMargem(usuario)))
+                .ToList());
         })
         .WithName("ListarProcedimentos");
 
-        group.MapGet("/{id:guid}", async (Guid id, ClinicaDbContext db, CancellationToken ct) =>
+        group.MapGet("/{id:guid}", async (
+            Guid id,
+            ClinicaDbContext db,
+            IUserContext usuario,
+            CancellationToken ct) =>
         {
             var procedimento = await db.Procedures.FirstOrDefaultAsync(p => p.Id == id, ct);
             return procedimento is null
                 ? Results.NotFound()
-                : Results.Ok(ProcedureResponse.From(procedimento));
+                : Results.Ok(ProcedureResponse.From(procedimento, PodeVerMargem(usuario)));
         })
         .WithName("ObterProcedimento");
 
@@ -59,7 +76,9 @@ public static class ProcedureEndpoints
             db.Procedures.Add(procedimento);
             await db.SaveChangesAsync(ct);
 
-            return Results.Created($"/procedures/{procedimento.Id}", ProcedureResponse.From(procedimento));
+            return Results.Created(
+                $"/procedures/{procedimento.Id}",
+                ProcedureResponse.From(procedimento, comMargem: true));
         })
         .RequireAuthorization(p => p.RequireRole("OWNER"))
         .WithName("CriarProcedimento");
@@ -90,13 +109,25 @@ public static class ProcedureEndpoints
 
             await db.SaveChangesAsync(ct);
 
-            return Results.Ok(ProcedureResponse.From(procedimento));
+            // Quem pode escrever aqui é OWNER, que enxerga margem por definição.
+            return Results.Ok(ProcedureResponse.From(procedimento, comMargem: true));
         })
         .RequireAuthorization(p => p.RequireRole("OWNER"))
         .WithName("AtualizarProcedimento");
 
         return app;
     }
+
+    /// <summary>
+    /// Custo de insumo e margem são informação de negócio, não de operação. Doutora e
+    /// recepção precisam do preço para agendar e cobrar; quanto sobra é conversa de quem
+    /// cuida do dinheiro.
+    ///
+    /// A omissão acontece no servidor: esconder a coluna na tela deixaria o número
+    /// viajando na resposta, a um F12 de distância.
+    /// </summary>
+    private static bool PodeVerMargem(IUserContext usuario) =>
+        usuario.HasRole("OWNER") || usuario.HasRole("FINANCE");
 }
 
 public record SaveProcedureRequest(
@@ -142,12 +173,15 @@ public record ProcedureResponse(
     string Name,
     int DurationMinutes,
     decimal Price,
-    decimal SuppliesCost,
-    decimal Margin,
+    /// <summary>Nulo para quem não pode ver custo — a omissão é no servidor, não na tela.</summary>
+    decimal? SuppliesCost,
+    decimal? Margin,
     string? Description,
     bool Active)
 {
-    public static ProcedureResponse From(Procedure p) =>
-        new(p.Id, p.Name, p.DurationMinutes, p.Price, p.SuppliesCost,
-            p.Price - p.SuppliesCost, p.Description, p.Active);
+    public static ProcedureResponse From(Procedure p, bool comMargem = false) =>
+        new(p.Id, p.Name, p.DurationMinutes, p.Price,
+            comMargem ? p.SuppliesCost : null,
+            comMargem ? p.Price - p.SuppliesCost : null,
+            p.Description, p.Active);
 }

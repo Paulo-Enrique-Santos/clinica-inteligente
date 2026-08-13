@@ -16,10 +16,25 @@ public static class PatientEndpoints
         // do EF Core ja restringe, e o RLS do Postgres restringe de novo. Se um dia
         // alguem "consertar" isso adicionando .Where(p => p.TenantId == ...), o codigo
         // fica redundante, nao mais seguro.
-        group.MapGet("/", async (ClinicaDbContext db, CancellationToken ct) =>
+        group.MapGet("/", async (string? q, ClinicaDbContext db, CancellationToken ct) =>
         {
-            var patients = await db.Patients
+            var query = db.Patients.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var termo = q.Trim();
+                // Só dígitos? É busca por telefone. A recepção digita "98765" tanto
+                // quanto "Maria", e obrigar a escolher o campo seria burocracia.
+                var somenteDigitos = termo.All(char.IsDigit);
+
+                query = somenteDigitos
+                    ? query.Where(p => p.PhoneE164.Contains(termo))
+                    : query.Where(p => EF.Functions.ILike(p.FullName, $"%{termo}%"));
+            }
+
+            var patients = await query
                 .OrderBy(p => p.FullName)
+                .Take(30)
                 .Select(p => PatientResponse.From(p))
                 .ToListAsync(ct);
 

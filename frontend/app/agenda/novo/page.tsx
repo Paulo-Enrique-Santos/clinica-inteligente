@@ -6,11 +6,11 @@ import {
   type Procedimento,
   type Profissional,
 } from "@/lib/api";
-import { duracao, reais } from "@/lib/formato";
 import { criarAtendimento } from "@/lib/actions/agenda";
 import { AppShell, PageHeader } from "@/components/app-shell";
 import { Card, CardBody, EmptyState } from "@/components/ui/card";
-import { Field, Input, Select } from "@/components/ui/field";
+import { Busca } from "@/components/ui/busca";
+import { Field, Input } from "@/components/ui/field";
 import { Formulario } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -82,44 +82,26 @@ export default async function NovoAtendimentoPage(props: PageProps<"/agenda/novo
       <Card className="max-w-lg">
         <CardBody>
           <Formulario acao={criarAtendimento} cancelarHref="/agenda" rotuloEnviar="Agendar">
-            <Field label="Paciente" htmlFor="paciente">
-              <Select id="paciente" name="paciente" required defaultValue="">
-                <option value="" disabled>
-                  Selecione
-                </option>
-                {pacientes.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.fullName}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+            <Busca
+              name="paciente"
+              recurso="pacientes"
+              label="Paciente"
+              placeholder="Nome ou telefone"
+            />
 
-            <Field label="Procedimento" htmlFor="procedimento">
-              <Select id="procedimento" name="procedimento" required defaultValue="">
-                <option value="" disabled>
-                  Selecione
-                </option>
-                {procedimentos.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} — {duracao(p.durationMinutes)} — {reais(p.price)}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+            <Busca
+              name="procedimento"
+              recurso="procedimentos"
+              label="Procedimento"
+              placeholder="Comece a digitar"
+            />
 
-            <Field label="Profissional" htmlFor="profissional">
-              <Select id="profissional" name="profissional" required defaultValue="">
-                <option value="" disabled>
-                  Selecione
-                </option>
-                {profissionais.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.displayName}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+            <Busca
+              name="profissional"
+              recurso="profissionais"
+              label="Profissional"
+              placeholder="Comece a digitar"
+            />
 
             <div className="grid grid-cols-2 gap-4">
               <Field label="Data" htmlFor="data">

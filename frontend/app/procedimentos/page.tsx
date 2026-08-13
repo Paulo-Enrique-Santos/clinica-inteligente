@@ -18,6 +18,10 @@ export default async function ProcedimentosPage() {
   const procedimentos = await apiFetch<Procedimento[]>("/procedures");
   const podeCadastrar = session.roles.includes("OWNER");
 
+  // A API já omite custo e margem para quem não pode vê-los; a tela apenas não
+  // desenha colunas vazias.
+  const mostraMargem = procedimentos.some((p) => p.margin !== null);
+
   return (
     <AppShell
       atual="/procedimentos"
@@ -62,12 +66,16 @@ export default async function ProcedimentosPage() {
                 <th className="px-5 py-3 text-right text-xs font-medium uppercase tracking-wide text-ink-subtle">
                   Preço
                 </th>
-                <th className="px-5 py-3 text-right text-xs font-medium uppercase tracking-wide text-ink-subtle">
-                  Insumos
-                </th>
-                <th className="px-5 py-3 text-right text-xs font-medium uppercase tracking-wide text-ink-subtle">
-                  Margem
-                </th>
+                {mostraMargem && (
+                  <>
+                    <th className="px-5 py-3 text-right text-xs font-medium uppercase tracking-wide text-ink-subtle">
+                      Insumos
+                    </th>
+                    <th className="px-5 py-3 text-right text-xs font-medium uppercase tracking-wide text-ink-subtle">
+                      Margem
+                    </th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -76,14 +84,20 @@ export default async function ProcedimentosPage() {
                   <td className="px-5 py-3.5 text-ink">{p.name}</td>
                   <td className="px-5 py-3.5 text-ink-muted">{duracao(p.durationMinutes)}</td>
                   <td className="px-5 py-3.5 text-right text-ink">{reais(p.price)}</td>
-                  <td className="px-5 py-3.5 text-right text-ink-muted">
-                    {reais(p.suppliesCost)}
-                  </td>
-                  <td className="px-5 py-3.5 text-right">
-                    {/* Margem é o que a Fase 13 vai usar para responder qual
-                        procedimento realmente compensa. */}
-                    <Badge tone={p.margin > 0 ? "success" : "danger"}>{reais(p.margin)}</Badge>
-                  </td>
+                  {mostraMargem && (
+                    <>
+                      <td className="px-5 py-3.5 text-right text-ink-muted">
+                        {reais(p.suppliesCost ?? 0)}
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        {/* Margem é o que a Fase 13 vai usar para responder qual
+                            procedimento realmente compensa. */}
+                        <Badge tone={(p.margin ?? 0) > 0 ? "success" : "danger"}>
+                          {reais(p.margin ?? 0)}
+                        </Badge>
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>

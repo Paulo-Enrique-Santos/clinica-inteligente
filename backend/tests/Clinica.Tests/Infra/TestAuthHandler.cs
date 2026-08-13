@@ -26,6 +26,7 @@ public class TestAuthHandler(
     public const string SchemeName = "Test";
     public const string TenantHeader = "X-Test-Tenant";
     public const string RolesHeader = "X-Test-Roles";
+    public const string UserHeader = "X-Test-User";
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
@@ -36,11 +37,18 @@ public class TestAuthHandler(
             return Task.FromResult(AuthenticateResult.NoResult());
         }
 
+        var usuario = Request.Headers.TryGetValue(UserHeader, out var informado)
+            && !string.IsNullOrWhiteSpace(informado)
+                ? informado.ToString()
+                : "usuario-de-teste";
+
         var claims = new List<Claim>
         {
             new("tenant_id", tenant.ToString()),
-            new(ClaimTypes.NameIdentifier, "usuario-de-teste"),
-            new("preferred_username", "usuario-de-teste"),
+            // "sub" é o que o Keycloak manda e o que o IUserContext lê primeiro.
+            new("sub", usuario),
+            new(ClaimTypes.NameIdentifier, usuario),
+            new("preferred_username", usuario),
         };
 
         if (Request.Headers.TryGetValue(RolesHeader, out var roles))

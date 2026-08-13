@@ -1,4 +1,5 @@
 using Clinica.Domain.Professionals;
+using Clinica.Domain.Tenancy;
 using Clinica.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,6 +30,18 @@ public static class ProfessionalEndpoints
             return Results.Ok(profissionais);
         })
         .WithName("ListarProfissionais");
+
+        // Antes de /{id}, senão "me" seria interpretado como identificador.
+        group.MapGet("/me", async (ClinicaDbContext db, IUserContext usuario, CancellationToken ct) =>
+        {
+            var eu = await db.Professionals
+                .FirstOrDefaultAsync(p => p.KeycloakUserId == usuario.UserId, ct);
+
+            // 404 aqui é informação útil, não falha: significa "seu login ainda não está
+            // vinculado a uma profissional", e a tela sabe explicar isso.
+            return eu is null ? Results.NotFound() : Results.Ok(ProfessionalResponse.From(eu));
+        })
+        .WithName("ObterMinhaFichaDeProfissional");
 
         group.MapPost("/", async (SaveProfessionalRequest request, ClinicaDbContext db, CancellationToken ct) =>
         {
@@ -118,8 +131,11 @@ public record ProfessionalResponse(
     string FullName,
     string DisplayName,
     string? Specialty,
-    bool Active)
+    bool Active,
+    /// <summary>Vínculo com o login. Sem ele, a profissional não consegue ver a própria agenda.</summary>
+    bool VinculadaAoLogin)
 {
     public static ProfessionalResponse From(Professional p) =>
-        new(p.Id, p.FullName, p.DisplayName, p.Specialty, p.Active);
+        new(p.Id, p.FullName, p.DisplayName, p.Specialty, p.Active,
+            !string.IsNullOrWhiteSpace(p.KeycloakUserId));
 }

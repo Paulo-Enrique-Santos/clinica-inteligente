@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { apiFetch, type Atendimento } from "@/lib/api";
+import { apiFetch, apiFetchOrNull, type Atendimento, type Profissional } from "@/lib/api";
+import { cn } from "@/lib/cn";
 import { hora, reais } from "@/lib/formato";
 import { formatarTelefone } from "@/lib/telefone";
 import { alterarStatus } from "@/lib/actions/agenda";
@@ -35,6 +36,11 @@ function deslocar(dia: string, dias: number) {
   return d.toISOString().slice(0, 10);
 }
 
+/** Mantém a profissional escolhida ao navegar entre os dias. */
+function filtroNaUrl(prof: string) {
+  return prof ? `&prof=${prof}` : "";
+}
+
 function porExtenso(dia: string) {
   return new Date(`${dia}T12:00:00Z`).toLocaleDateString("pt-BR", {
     weekday: "long",
@@ -54,17 +60,53 @@ export default async function AgendaPage(props: PageProps<"/agenda">) {
   const params = await props.searchParams;
   const bruto = typeof params.dia === "string" ? params.dia : "";
   const dia = ehDataValida(bruto) ? bruto : hoje();
+  const profFiltro = typeof params.prof === "string" ? params.prof : "";
+
+  // Quem só atende vê a própria agenda; quem organiza a agenda da clínica escolhe.
+  // Esta variável controla apenas a INTERFACE — a restrição de verdade é aplicada
+  // no servidor, e não some se alguém mexer na query string.
+  const soPropriaAgenda =
+    session.roles.includes("DOCTOR") &&
+    !session.roles.includes("OWNER") &&
+    !session.roles.includes("SECRETARY");
 
   // A API recebe a janela do dia inteiro no fuso da clínica.
   const de = `${dia}T00:00:00-03:00`;
   const ate = `${deslocar(dia, 1)}T00:00:00-03:00`;
+  const filtro = !soPropriaAgenda && profFiltro ? `&profissionalId=${profFiltro}` : "";
 
-  const agenda = await apiFetch<Atendimento[]>(
-    `/appointments?de=${encodeURIComponent(de)}&ate=${encodeURIComponent(ate)}`,
-  );
+  const [agenda, profissionais, minhaFicha] = await Promise.all([
+    apiFetch<Atendimento[]>(
+      `/appointments?de=${encodeURIComponent(de)}&ate=${encodeURIComponent(ate)}${filtro}`,
+    ),
+    soPropriaAgenda
+      ? Promise.resolve([] as Profissional[])
+      : apiFetch<Profissional[]>("/professionals"),
+    soPropriaAgenda
+      ? apiFetchOrNull<Profissional>("/professionals/me")
+      : Promise.resolve(null),
+  ]);
 
   const podeAgendar = session.roles.some((r) => r === "OWNER" || r === "SECRETARY");
   const ativos = agenda.filter((a) => a.status !== "Cancelado");
+
+  // Doutora com login ainda não vinculado a uma ficha: a agenda vem vazia por
+  // definição. Dizer o motivo evita que ela ache que o sistema perdeu os dados.
+  if (soPropriaAgenda && minhaFicha === null) {
+    return (
+      <AppShell
+        atual="/agenda"
+        usuario={session.user?.name ?? session.user?.email ?? "—"}
+        papeis={session.roles}
+      >
+        <PageHeader titulo="Agenda" />
+        <EmptyState
+          title="Seu login ainda não está vinculado a uma profissional"
+          description="Peça à responsável pela clínica para ligar o seu acesso à sua ficha em Configurações. Enquanto isso, a agenda aparece vazia."
+        />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell
@@ -73,7 +115,7 @@ export default async function AgendaPage(props: PageProps<"/agenda">) {
       papeis={session.roles}
     >
       <PageHeader
-        titulo="Agenda"
+        titulo={soPropriaAgenda ? "Minha agenda" : "Agenda"}
         descricao={`${porExtenso(dia)} · ${ativos.length} atendimento${ativos.length === 1 ? "" : "s"}`}
         acao={
           podeAgendar ? (
@@ -85,22 +127,52 @@ export default async function AgendaPage(props: PageProps<"/agenda">) {
       />
 
       <div className="mb-5 flex items-center gap-2">
-        <Link href={`/agenda?dia=${deslocar(dia, -1)}`}>
+        <Link href={`/agenda?dia=${deslocar(dia, -1)}${filtroNaUrl(profFiltro)}`}>
           <Button variant="secondary" size="sm">
             ← Anterior
           </Button>
         </Link>
-        <Link href={`/agenda?dia=${hoje()}`}>
+        <Link href={`/agenda?dia=${hoje()}${filtroNaUrl(profFiltro)}`}>
           <Button variant="ghost" size="sm">
             Hoje
           </Button>
         </Link>
-        <Link href={`/agenda?dia=${deslocar(dia, 1)}`}>
+        <Link href={`/agenda?dia=${deslocar(dia, 1)}${filtroNaUrl(profFiltro)}`}>
           <Button variant="secondary" size="sm">
             Próximo →
           </Button>
         </Link>
       </div>
+
+      {!soPropriaAgenda && profissionais.length > 0 && (
+        <div className="mb-5 flex flex-wrap gap-1">
+          <Link
+            href={`/agenda?dia=${dia}`}
+            className={cn(
+              "rounded-control px-3 py-1.5 text-sm transition-colors",
+              profFiltro === ""
+                ? "bg-primary-soft font-medium text-primary"
+                : "text-ink-muted hover:bg-surface-muted hover:text-ink",
+            )}
+          >
+            Todas
+          </Link>
+          {profissionais.map((p) => (
+            <Link
+              key={p.id}
+              href={`/agenda?dia=${dia}&prof=${p.id}`}
+              className={cn(
+                "rounded-control px-3 py-1.5 text-sm transition-colors",
+                profFiltro === p.id
+                  ? "bg-primary-soft font-medium text-primary"
+                  : "text-ink-muted hover:bg-surface-muted hover:text-ink",
+              )}
+            >
+              {p.displayName}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {agenda.length === 0 ? (
         <EmptyState

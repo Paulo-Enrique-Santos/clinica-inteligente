@@ -20,6 +20,24 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   return resposta.json() as Promise<T>;
 }
 
+/**
+ * Como <c>apiFetch</c>, mas devolve null em 404 em vez de lançar.
+ *
+ * Existe para os casos em que "não encontrado" é resposta esperada, não falha — por
+ * exemplo, a doutora cujo login ainda não foi vinculado a uma ficha de profissional.
+ */
+export async function apiFetchOrNull<T>(path: string): Promise<T | null> {
+  const resposta = await requisicao(path);
+
+  if (resposta.status === 404) return null;
+
+  if (!resposta.ok) {
+    throw new Error(`API respondeu ${resposta.status} em ${path}`);
+  }
+
+  return resposta.json() as Promise<T>;
+}
+
 /** Erro de rede: a API não respondeu. Distinto de "respondeu com erro". */
 export class ApiForaDoArError extends Error {
   constructor(path: string, causa: unknown) {
@@ -135,6 +153,7 @@ export type Profissional = {
   displayName: string;
   specialty: string | null;
   active: boolean;
+  vinculadaAoLogin: boolean;
 };
 
 export type Atendimento = {

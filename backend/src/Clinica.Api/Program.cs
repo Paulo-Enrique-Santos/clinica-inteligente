@@ -14,6 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 // ---------------------------------------------------------------------------
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantContext, HttpTenantContext>();
+builder.Services.AddScoped<IUserContext, HttpUserContext>();
 
 // ---------------------------------------------------------------------------
 // Autenticacao (Keycloak)

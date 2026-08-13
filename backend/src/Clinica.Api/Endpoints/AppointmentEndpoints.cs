@@ -1,4 +1,5 @@
 using Clinica.Domain.Appointments;
+using Clinica.Domain.Tenancy;
 using Clinica.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -21,6 +22,7 @@ public static class AppointmentEndpoints
             DateTimeOffset? ate,
             Guid? profissionalId,
             ClinicaDbContext db,
+            IUserContext usuario,
             CancellationToken ct) =>
         {
             // Sem janela informada, o padrão é o dia de hoje — é o que a recepção
@@ -31,7 +33,23 @@ public static class AppointmentEndpoints
             var query = db.Appointments
                 .Where(a => a.StartsAt >= inicio && a.StartsAt < fim);
 
-            if (profissionalId is { } pid)
+            // A doutora vê a própria agenda e só. Quem organiza a agenda da clínica
+            // — recepção e dona — escolhe de quem quer ver.
+            //
+            // A restrição é aplicada no servidor, e não escondendo o filtro na tela:
+            // do contrário bastaria alterar a query string para ler a agenda de
+            // outra profissional, com nome e telefone das pacientes dela.
+            if (SoVeAPropriaAgenda(usuario))
+            {
+                var minhaFicha = await db.Professionals
+                    .Where(p => p.KeycloakUserId == usuario.UserId)
+                    .Select(p => (Guid?)p.Id)
+                    .FirstOrDefaultAsync(ct);
+
+                // Sem vínculo, nenhuma agenda. Negar por padrão, como no resto do sistema.
+                query = query.Where(a => a.ProfessionalId == (minhaFicha ?? Guid.Empty));
+            }
+            else if (profissionalId is { } pid)
             {
                 query = query.Where(a => a.ProfessionalId == pid);
             }
@@ -204,6 +222,18 @@ public static class AppointmentEndpoints
 
         return app;
     }
+
+    /// <summary>
+    /// Doutora sem papel de organização enxerga apenas a própria agenda.
+    ///
+    /// Quem acumula DOCTOR com OWNER ou SECRETARY (comum em clínica pequena, onde a dona
+    /// também atende) continua vendo tudo — senão a dona perderia a visão do próprio
+    /// negócio ao ganhar o papel de quem atende.
+    /// </summary>
+    private static bool SoVeAPropriaAgenda(IUserContext usuario) =>
+        usuario.HasRole("DOCTOR")
+        && !usuario.HasRole("OWNER")
+        && !usuario.HasRole("SECRETARY");
 
     /// <summary>
     /// A checagem de conflito vive no banco (constraint EXCLUDE), não numa consulta

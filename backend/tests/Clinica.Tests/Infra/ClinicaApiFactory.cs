@@ -61,10 +61,22 @@ public class ClinicaApiFactory(string connectionString) : WebApplicationFactory<
     }
 
     /// <summary>Cliente HTTP autenticado como um usuario da clinica informada.</summary>
-    public HttpClient CreateClientFor(Guid tenantId, params string[] roles)
+    public HttpClient CreateClientFor(Guid tenantId, params string[] roles) =>
+        CreateClientForUser(tenantId, usuario: null, roles);
+
+    /// <summary>
+    /// Igual ao anterior, mas identificando QUAL usuario — necessario para as regras que
+    /// dependem do individuo, como a doutora ver apenas a propria agenda.
+    /// </summary>
+    public HttpClient CreateClientForUser(Guid tenantId, string? usuario, params string[] roles)
     {
         var client = CreateClient();
         client.DefaultRequestHeaders.Add(TestAuthHandler.TenantHeader, tenantId.ToString());
+
+        if (!string.IsNullOrWhiteSpace(usuario))
+        {
+            client.DefaultRequestHeaders.Add(TestAuthHandler.UserHeader, usuario);
+        }
 
         if (roles.Length > 0)
         {

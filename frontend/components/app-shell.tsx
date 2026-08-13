@@ -35,8 +35,8 @@ export function AppShell({
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-6 px-6">
           <div className="flex items-center gap-8">
             <Link href="/pacientes" className="flex items-center gap-2.5">
-              {/* alt vazio de propósito: o nome vem logo ao lado, e leitor de tela
-                  anunciando duas vezes é ruído. */}
+              {/* Símbolo é decorativo (alt vazio) porque o nome vem na imagem ao
+                  lado — leitor de tela anunciando duas vezes é ruído. */}
               <Image
                 src="/cliniq-mark.png"
                 alt=""
@@ -45,9 +45,16 @@ export function AppShell({
                 priority
                 className="h-7 w-auto"
               />
-              <span className="font-display text-lg tracking-[0.16em] text-ink">
-                CLINIQ
-              </span>
+              {/* O lettering vem do próprio logo, não da fonte: a estrela dentro
+                  do Q e o floreio embaixo fazem parte do desenho da marca. */}
+              <Image
+                src="/cliniq-wordmark.png"
+                alt="CLINIQ"
+                width={300}
+                height={68}
+                priority
+                className="h-5 w-auto"
+              />
             </Link>
 
             <nav className="hidden items-center gap-1 sm:flex">

@@ -6,6 +6,7 @@
 |---|---|
 | `frontend/public/cliniq-logo.png` (440×364) | tela de login do Next e tela do Keycloak |
 | `frontend/public/cliniq-mark.png` (140×157) | símbolo no cabeçalho do sistema |
+| `frontend/public/cliniq-wordmark.png` (300×68) | lettering no cabeçalho, ao lado do símbolo |
 | `frontend/app/icon.png` (512×512) | favicon e ícone de app |
 | `infra/keycloak/themes/clinica/login/resources/img/cliniq-logo.png` | cópia para o Keycloak |
 

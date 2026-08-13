@@ -22,7 +22,7 @@ export function Busca({
   obrigatorio = true,
 }: {
   name: string;
-  recurso: "pacientes" | "procedimentos" | "profissionais";
+  recurso: "pacientes" | "procedimentos" | "profissionais" | "estoque";
   label: string;
   placeholder?: string;
   aoEscolher?: (opcao: Opcao | null) => void;
@@ -171,6 +171,14 @@ function normalizar(recurso: string, dados: unknown[]): Opcao[] {
         detalhe: `${p.durationMinutes} min · ${MOEDA.format(p.price)}`,
       }),
     );
+  }
+
+  if (recurso === "estoque") {
+    return (dados as { id: string; name: string; unit: string; balance: number }[]).map((i) => ({
+      id: i.id,
+      titulo: i.name,
+      detalhe: `saldo ${i.balance} ${i.unit}`,
+    }));
   }
 
   return (dados as { id: string; displayName: string; specialty: string | null }[]).map((p) => ({

@@ -42,6 +42,29 @@ public class Appointment : TenantEntity
     /// <summary>Motivo do cancelamento, quando houver. Alimenta o relatório de gestão.</summary>
     public string? CancellationReason { get; set; }
 
+    /// <summary>Quando a doutora fechou o atendimento.</summary>
+    public DateTimeOffset? CompletedAt { get; set; }
+
+    /// <summary>
+    /// O que aconteceu no atendimento, escrito pela profissional.
+    ///
+    /// Separado de <see cref="Notes"/>, que é recado de agendamento ("chegou atrasada",
+    /// "pediu horário à tarde"). Misturar os dois faria a recepção ler observação
+    /// clínica e a doutora procurar informação de agenda no lugar errado.
+    /// </summary>
+    public string? ExecutionNotes { get; set; }
+
+    /// <summary>
+    /// Quando perguntar à paciente como ela está.
+    ///
+    /// Aqui apenas registramos a intenção; quem envia é o agente de pós-procedimento
+    /// (Fase 8). Guardar a data desde já significa que, no dia em que o agente entrar,
+    /// ele encontra o histórico pronto em vez de começar do zero.
+    /// </summary>
+    public DateTimeOffset? FollowUpAt { get; set; }
+
+    public DateTimeOffset? FollowUpSentAt { get; set; }
+
     /// <summary>
     /// Um atendimento cancelado libera o horário; os demais o ocupam. Esta regra também
     /// existe no banco, na constraint de sobreposição.

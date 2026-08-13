@@ -21,6 +21,12 @@ public class AppointmentConfiguration : IEntityTypeConfiguration<Appointment>
         builder.Property(a => a.Price).HasPrecision(10, 2);
         builder.Property(a => a.Notes).HasMaxLength(2000);
         builder.Property(a => a.CancellationReason).HasMaxLength(500);
+        builder.Property(a => a.ExecutionNotes).HasMaxLength(4000);
+
+        // O agente de pós-procedimento vai varrer por "quem está esperando contato":
+        // follow-up marcado e ainda não enviado.
+        builder.HasIndex(a => new { a.TenantId, a.FollowUpAt })
+            .HasFilter(null);
 
         // Restrict e não Cascade: apagar uma paciente não pode varrer o histórico de
         // atendimentos, que é registro clínico e financeiro.

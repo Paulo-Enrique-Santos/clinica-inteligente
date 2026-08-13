@@ -12,13 +12,22 @@ public static class StockEndpoints
             .RequireAuthorization()
             .WithTags("Estoque");
 
-        group.MapGet("/", async (bool? incluirInativos, ClinicaDbContext db, CancellationToken ct) =>
+        group.MapGet("/", async (
+            string? q,
+            bool? incluirInativos,
+            ClinicaDbContext db,
+            CancellationToken ct) =>
         {
             var itens = db.StockItems.AsQueryable();
 
             if (incluirInativos != true)
             {
                 itens = itens.Where(i => i.Active);
+            }
+
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                itens = itens.Where(i => EF.Functions.ILike(i.Name, $"%{q.Trim()}%"));
             }
 
             // O saldo é somado das movimentações, não lido de uma coluna. Ver o comentário

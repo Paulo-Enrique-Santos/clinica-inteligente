@@ -281,15 +281,16 @@ export default async function AgendaPage(props: PageProps<"/agenda">) {
                   {podeAgendar && a.status === "Agendado" && (
                     <BotaoStatus id={a.id} dia={dia} status="Confirmado" rotulo="Confirmar" />
                   )}
-                  {podeAgendar && (a.status === "Agendado" || a.status === "Confirmado") && (
+                  {(a.status === "Agendado" || a.status === "Confirmado") && (
                     <>
-                      <BotaoStatus
-                        id={a.id}
-                        dia={dia}
-                        status="Realizado"
-                        rotulo="Realizado"
-                        variante="secondary"
-                      />
+                      {/* "Atendi" leva à tela de conclusão, onde entram insumos,
+                          observação e o contato de pós-procedimento. Marcar como
+                          realizado sem isso perderia justamente o que interessa. */}
+                      <Link href={`/agenda/${a.id}/concluir?dia=${dia}`}>
+                        <Button size="sm" variant="secondary">
+                          Atendi
+                        </Button>
+                      </Link>
                       <BotaoStatus
                         id={a.id}
                         dia={dia}
@@ -298,6 +299,13 @@ export default async function AgendaPage(props: PageProps<"/agenda">) {
                         variante="ghost"
                       />
                     </>
+                  )}
+                  {a.status === "Realizado" && podeAgendar && (
+                    <Link href={`/agenda/${a.id}/concluir?dia=${dia}`}>
+                      <Button size="sm" variant="ghost">
+                        Revisar
+                      </Button>
+                    </Link>
                   )}
                 </div>
               </div>

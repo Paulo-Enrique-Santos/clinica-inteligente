@@ -14,6 +14,7 @@ const RECURSOS: Record<string, string> = {
   pacientes: "/patients",
   procedimentos: "/procedures",
   profissionais: "/professionals",
+  estoque: "/stock",
 };
 
 export async function GET(

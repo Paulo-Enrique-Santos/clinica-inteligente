@@ -1,4 +1,5 @@
 using Clinica.Domain.Appointments;
+using Clinica.Domain.Stock;
 using Clinica.Domain.Tenancy;
 using Clinica.Infrastructure.Persistence;
 using Clinica.Infrastructure.Scheduling;
@@ -191,6 +192,89 @@ public static class AppointmentEndpoints
         .RequireAuthorization(p => p.RequireRole("OWNER", "SECRETARY"))
         .WithName("RemarcarAtendimento");
 
+        group.MapPost("/{id:guid}/concluir", async (
+            Guid id,
+            CompleteAppointmentRequest request,
+            ClinicaDbContext db,
+            CancellationToken ct) =>
+        {
+            var atendimento = await db.Appointments.FirstOrDefaultAsync(a => a.Id == id, ct);
+
+            if (atendimento is null)
+            {
+                return Results.NotFound();
+            }
+
+            if (atendimento.Status == AppointmentStatus.Cancelado)
+            {
+                return Results.Problem(
+                    title: "Atendimento cancelado",
+                    detail: "Um atendimento cancelado nao pode ser concluido.",
+                    statusCode: StatusCodes.Status409Conflict);
+            }
+
+            var itens = request.Supplies ?? [];
+
+            if (itens.Any(i => i.Quantity <= 0))
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["supplies"] = ["Quantidade de insumo deve ser maior que zero."],
+                });
+            }
+
+            var idsInformados = itens.Select(i => i.StockItemId).Distinct().ToList();
+
+            var existentes = await db.StockItems
+                .Where(i => idsInformados.Contains(i.Id))
+                .Select(i => i.Id)
+                .ToListAsync(ct);
+
+            if (existentes.Count != idsInformados.Count)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["supplies"] = ["Algum insumo nao existe nesta clinica."],
+                });
+            }
+
+            atendimento.Status = AppointmentStatus.Realizado;
+            atendimento.CompletedAt = DateTimeOffset.UtcNow;
+            atendimento.ExecutionNotes = request.Notes?.Trim();
+
+            atendimento.FollowUpAt = request.FollowUpInHours is { } horas and > 0
+                ? DateTimeOffset.UtcNow.AddHours(horas)
+                : null;
+
+            // A quantidade informada é a REAL, não a da tabela do procedimento.
+            // Preenchimento sai por ml e o consumo é exato; creme rende "sei lá quantas".
+            // É a diferença entre as duas que, na Fase 13, vai mostrar a margem de verdade.
+            foreach (var item in itens)
+            {
+                db.StockMovements.Add(new StockMovement
+                {
+                    StockItemId = item.StockItemId,
+                    Type = StockMovementType.Saida,
+                    Quantity = item.Quantity,
+                    AppointmentId = atendimento.Id,
+                    Reason = "Consumo em atendimento",
+                });
+            }
+
+            // Baixa e conclusão gravam juntas: o EF envolve o SaveChanges numa
+            // transação, então não existe atendimento concluído sem a baixa do insumo.
+            //
+            // Saldo negativo é permitido de propósito: se a clínica usou produto que
+            // nunca deu entrada, travar aqui impediria a doutora de fechar o atendimento
+            // por causa de escrituração. O saldo negativo aparece na tela de estoque e é
+            // corrigido com um ajuste.
+            await db.SaveChangesAsync(ct);
+
+            return Results.NoContent();
+        })
+        .RequireAuthorization(p => p.RequireRole("OWNER", "DOCTOR", "SECRETARY"))
+        .WithName("ConcluirAtendimento");
+
         group.MapPost("/{id:guid}/status", async (
             Guid id,
             ChangeStatusRequest request,
@@ -275,6 +359,14 @@ public record CreateAppointmentRequest(
     string? Notes);
 
 public record RescheduleRequest(DateTimeOffset NewStartsAt);
+
+public record SupplyUsed(Guid StockItemId, decimal Quantity);
+
+public record CompleteAppointmentRequest(
+    string? Notes,
+    SupplyUsed[]? Supplies,
+    /// <summary>Em quantas horas perguntar como a paciente está. Nulo = não perguntar.</summary>
+    int? FollowUpInHours);
 
 public record ChangeStatusRequest(string Status, string? Reason);
 

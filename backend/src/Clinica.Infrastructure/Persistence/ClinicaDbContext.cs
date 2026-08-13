@@ -7,6 +7,7 @@ using Clinica.Domain.Professionals;
 using Clinica.Domain.Stock;
 using Clinica.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Clinica.Infrastructure.Persistence;
 
@@ -43,8 +44,38 @@ public class ClinicaDbContext(DbContextOptions<ClinicaDbContext> options, ITenan
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ClinicaDbContext).Assembly);
 
+        // ---------------------------------------------------------------------
+        // Todo instante vira UTC antes de tocar o banco.
+        //
+        // O Npgsql recusa DateTimeOffset com offset diferente de zero em
+        // 'timestamp with time zone' — e a aplicacao recebe horario no fuso da
+        // clinica (-03:00), porque e assim que a recepcao pensa. Sem esta conversao,
+        // agendar e listar a agenda quebram com erro de driver.
+        //
+        // Fica como convencao, e nao como .ToUniversalTime() espalhado pelos
+        // endpoints, porque basta um caminho esquecer para o bug voltar.
+        var paraUtc = new ValueConverter<DateTimeOffset, DateTimeOffset>(
+            valor => valor.ToUniversalTime(),
+            valor => valor);
+
+        var paraUtcOpcional = new ValueConverter<DateTimeOffset?, DateTimeOffset?>(
+            valor => valor.HasValue ? valor.Value.ToUniversalTime() : valor,
+            valor => valor);
+
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
+            foreach (var property in entityType.GetProperties())
+            {
+                if (property.ClrType == typeof(DateTimeOffset))
+                {
+                    property.SetValueConverter(paraUtc);
+                }
+                else if (property.ClrType == typeof(DateTimeOffset?))
+                {
+                    property.SetValueConverter(paraUtcOpcional);
+                }
+            }
+
             if (!typeof(TenantEntity).IsAssignableFrom(entityType.ClrType))
             {
                 continue;

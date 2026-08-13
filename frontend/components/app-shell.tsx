@@ -22,6 +22,13 @@ const SECOES = [
   { href: "/configuracoes", label: "Configurações", pronto: true, papeis: ["OWNER"] },
 ];
 
+/** "Teste Doutora 2" -> "Teste". Nome de login vira nome de gente. */
+function primeiroNome(usuario: string) {
+  const limpo = usuario.includes("@") ? usuario.split("@")[0] : usuario;
+  const primeiro = limpo.replace(/[._]/g, " ").trim().split(/\s+/)[0] ?? limpo;
+  return primeiro.charAt(0).toUpperCase() + primeiro.slice(1);
+}
+
 export function AppShell({
   atual,
   usuario,
@@ -92,12 +99,11 @@ export function AppShell({
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="hidden text-right sm:block">
-              <p className="text-sm text-ink">{usuario}</p>
-              {papeis.length > 0 && (
-                <p className="text-xs text-ink-subtle">{papeis.join(" · ")}</p>
-              )}
-            </div>
+            {/* Só o cumprimento. Papel técnico do Keycloak não diz nada a quem
+                trabalha na clínica, e a pessoa já sabe quem ela é. */}
+            <p className="hidden text-sm text-ink-muted sm:block">
+              Olá, <span className="text-ink">{primeiroNome(usuario)}</span>
+            </p>
             <form action={sair}>
               <Button variant="secondary" size="sm" type="submit">
                 Sair

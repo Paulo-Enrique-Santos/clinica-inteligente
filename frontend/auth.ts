@@ -5,6 +5,8 @@ import { readJwtClaims } from "@/lib/jwt";
 
 export const KEYCLOAK_ISSUER = process.env.AUTH_KEYCLOAK_ISSUER!;
 
+const PAPEIS_DA_CLINICA = ["OWNER", "DOCTOR", "SECRETARY", "FINANCE"];
+
 /**
  * O access token do Keycloak vale 15 minutos. Sem renovacao, a tela quebraria com 401 no
  * meio do expediente da secretaria — entao trocamos o refresh token por um novo par assim
@@ -62,7 +64,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           idToken: account.id_token,
           expiresAt: account.expires_at,
           tenantId: claims?.tenant_id as string | undefined,
-          roles: realmAccess?.roles ?? [],
+          // Só os papéis do negócio. O Keycloak também manda os dele
+          // (default-roles-clinica, offline_access, uma_authorization), que não
+          // significam nada para a clínica e só poluiriam a tela.
+          roles: (realmAccess?.roles ?? []).filter((r) => PAPEIS_DA_CLINICA.includes(r)),
         };
       }
 

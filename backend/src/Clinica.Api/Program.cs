@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Clinica.Api.Endpoints;
+using Clinica.Api.OpenApi;
 using Clinica.Api.Tenancy;
 using Clinica.Domain.Tenancy;
 using Clinica.Infrastructure;
@@ -55,13 +56,24 @@ var connectionString = builder.Configuration.GetConnectionString("Clinica")
 
 builder.Services.AddClinicaPersistence(connectionString);
 
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+});
 
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
+    // O .NET gera o documento; o Swashbuckle entra so com a interface.
     app.MapOpenApi();
+
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/openapi/v1.json", "Clinica API v1");
+        options.RoutePrefix = "swagger";
+        options.DocumentTitle = "Clinica Inteligente — API";
+    });
 }
 
 app.UseAuthentication();

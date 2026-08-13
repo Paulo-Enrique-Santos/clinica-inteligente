@@ -15,7 +15,17 @@ Com a infra de pé (ver [../infra/README.md](../infra/README.md)):
 dotnet run --project backend/src/Clinica.Api
 ```
 
-OpenAPI em `/openapi/v1.json`. `GET /health` é anônimo; o resto exige token do Keycloak.
+Swagger UI em **http://localhost:5231/swagger** (abre sozinho ao rodar pelo Visual Studio).
+Documento OpenAPI cru em `/openapi/v1.json`.
+
+`GET /health` é anônimo; o resto exige token do Keycloak. Para testar no Swagger:
+
+1. Gere um token — ver [Gerar um token](../infra/README.md#gerar-um-token).
+2. Clique em **Authorize**, no topo direito.
+3. Cole **apenas o token**, sem escrever `Bearer` na frente (a UI já acrescenta).
+
+Trocando o usuário do token você troca de clínica, e a mesma chamada devolve outro
+conjunto de pacientes — é a forma mais rápida de ver o multi-tenant em ação.
 
 ## Migrations
 

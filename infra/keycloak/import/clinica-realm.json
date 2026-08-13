@@ -10,6 +10,8 @@
   "editUsernameAllowed": false,
   "verifyEmail": false,
 
+  "loginTheme": "clinica",
+
   "internationalizationEnabled": true,
   "supportedLocales": ["pt-BR", "en"],
   "defaultLocale": "pt-BR",

@@ -45,6 +45,26 @@ cansa a leitura.
 `EmptyState` merece atenção: num sistema recém-implantado quase toda tela começa vazia, e é
 a primeira impressão que a clínica tem do produto.
 
+## A tela de login vive em outro lugar
+
+O login é servido pelo **Keycloak**, não pelo Next — e isso é proposital. A alternativa
+(coletar e-mail e senha numa tela nossa e postar no Keycloak) faria a senha trafegar pela
+nossa aplicação e jogaria fora, de graça, o reset de senha, o 2FA, a proteção contra força
+bruta e o controle de sessão.
+
+Para a tela ter a nossa cara mesmo assim, existe um tema próprio em
+`infra/keycloak/themes/clinica/`. Ele usa `parent=base`: herdamos os templates de todos os
+fluxos (reset, OTP, verificação de e-mail, erro) e sobrescrevemos apenas o `template.ftl`,
+que é a casca da página, mais o CSS.
+
+> ⚠️ **Os tokens estão duplicados.** `infra/keycloak/themes/clinica/login/resources/css/clinica.css`
+> repete os valores de `frontend/app/globals.css`. O Keycloak é uma aplicação Java separada,
+> sem acesso ao build do Tailwind — não há como compartilhar. **Mudou a identidade visual,
+> mude nos dois lugares.**
+
+Em desenvolvimento o cache de temas está desligado no `docker-compose.yml`; edite o CSS e
+recarregue a página. Em produção, ligue de volta.
+
 ## Decisões deliberadas
 
 **Sem dark mode.** O pedido é um sistema branco e clean. Um segundo tema dobraria o custo de

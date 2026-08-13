@@ -54,10 +54,16 @@ services:
       KC_HEALTH_ENABLED: "true"
       KC_METRICS_ENABLED: "true"
       KC_HTTP_ENABLED: "true"
+      # Sem isto, o Keycloak serve o tema em cache e voce edita CSS sem ver
+      # diferenca nenhuma — desligar so em desenvolvimento.
+      KC_SPI_THEME_CACHE_THEMES: "false"
+      KC_SPI_THEME_CACHE_TEMPLATES: "false"
+      KC_SPI_THEME_STATIC_MAX_AGE: "-1"
     ports:
       - "${KEYCLOAK_PORT:-8080}:8080"
     volumes:
       - ./keycloak/import:/opt/keycloak/data/import:ro
+      - ./keycloak/themes:/opt/keycloak/themes:ro
     depends_on:
       postgres:
         condition: service_healthy

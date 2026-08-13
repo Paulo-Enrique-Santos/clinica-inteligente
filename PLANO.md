@@ -338,10 +338,15 @@ e a API muda. Por isso ele fica **isolado atrás de uma interface** — trocar p
 Cada fase entrega algo demonstrável e um conceito de IA fechado. Estimativas assumem trabalho
 de fim de semana / algumas horas por dia — ajuste conforme seu ritmo.
 
-### Fase 0 — Fundação (sem IA) · ~1 semana
+### Fase 0 — Fundação (sem IA) ✅ CONCLUÍDA
 Monorepo, docker-compose (Postgres + Keycloak), solução .NET modular, Next.js com login OIDC,
 `tenant_id` + global filter + RLS, seed de 2 clínicas, teste de isolamento entre tenants, CI básica.
 **Pronto quando:** login com 2 usuários de clínicas diferentes e o teste de vazamento passa.
+
+Entregue além do previsto: Swagger com Bearer, realm em pt-BR, renovação de token e logout
+federado no front, e o `RlsSchemaGuardTests` (varre o schema e falha se tabela com `tenant_id`
+ficar sem policy). Pendências conhecidas: CI não builda o front; SMTP não configurado, então
+"esqueci minha senha" mostra o formulário mas o e-mail não sai.
 
 ### Fase 1 — Núcleo clínico · ~2 semanas
 CRUD de paciente, procedimento, agenda (com detecção de conflito), pagamentos e estoque.

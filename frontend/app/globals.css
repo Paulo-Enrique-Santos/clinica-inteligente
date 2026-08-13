@@ -1,26 +1,87 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ---------------------------------------------------------------------------
+   Sistema de design — Clínica Inteligente
+
+   Referência: branco dominante, muito respiro, cantos suaves, sombra quase
+   imperceptível. O acento é rosé sobre uma base de neutros QUENTES (não cinza
+   azulado), que é o que separa "elegante" de "corporativo frio".
+
+   Decisão: tema claro apenas. O pedido é um sistema branco e clean; manter um
+   segundo tema dobraria o custo de cada tela sem servir a ninguém dentro de
+   uma clínica.
+   --------------------------------------------------------------------------- */
+
+@theme {
+  /* --- Superfícies ------------------------------------------------------- */
+  --color-canvas: #ffffff;
+  --color-surface: #fdfbfa; /* branco levemente quente, para blocos */
+  --color-surface-muted: #f7f2ee; /* champanhe claro */
+  --color-border: #ece4de;
+  --color-border-strong: #ddd1c8;
+
+  /* --- Texto ------------------------------------------------------------- */
+  --color-ink: #1b1714; /* quase preto, com fundo marrom */
+  --color-ink-muted: #7a6e67; /* secundário — 4.6:1 no branco */
+  --color-ink-subtle: #a2968e; /* apenas para rótulos e metadados */
+
+  /* --- Acento rosé ------------------------------------------------------- *
+   * O primário é escuro de propósito: #9C5566 com texto branco dá 5.2:1, o
+   * que passa em WCAG AA. Tons mais claros de rosé ficam bonitos e ilegíveis. */
+  --color-primary: #9c5566;
+  --color-primary-hover: #854656;
+  --color-primary-soft: #f6ebee; /* fundo de destaque */
+  --color-primary-border: #e8d2d8;
+
+  /* --- Champanhe (secundário, para realces e ilustração) ----------------- */
+  --color-champagne: #c9a96b;
+  --color-champagne-soft: #f7efe2;
+
+  /* --- Semânticas, puxadas para o quente para não destoar ---------------- */
+  --color-success: #4f7a5e;
+  --color-success-soft: #eef4ef;
+  --color-warning: #a8783c;
+  --color-warning-soft: #faf1e3;
+  --color-danger: #a3493f;
+  --color-danger-soft: #fbeeec;
+
+  /* --- Tipografia -------------------------------------------------------- *
+   * Serifa nos títulos é o que carrega a elegância; sem ela o resultado fica
+   * "clean" mas genérico. O corpo continua sans, para leitura em tabela. */
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), monospace;
+
+  /* --- Raio -------------------------------------------------------------- */
+  --radius-control: 0.625rem; /* 10px — botões e campos */
+  --radius-card: 0.875rem; /* 14px — cards e tabelas */
+
+  /* --- Sombras: quentes e discretas -------------------------------------- */
+  --shadow-soft: 0 1px 2px rgba(27, 23, 20, 0.04),
+    0 8px 24px -12px rgba(27, 23, 20, 0.1);
+  --shadow-lifted: 0 2px 4px rgba(27, 23, 20, 0.05),
+    0 16px 40px -16px rgba(27, 23, 20, 0.16);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
+  }
+
+  /* Foco visível e no tom da marca — acessibilidade não é opcional num
+     sistema que a secretária usa o dia inteiro no teclado. */
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
 }

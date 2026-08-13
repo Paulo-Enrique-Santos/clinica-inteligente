@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { entrar } from "@/lib/actions";
+import { Button } from "@/components/ui/button";
 
 export default async function Home() {
   const session = await auth();
@@ -10,38 +11,48 @@ export default async function Home() {
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center bg-zinc-50 p-6 dark:bg-zinc-950">
-      <main className="w-full max-w-sm rounded-xl border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900">
-        <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-          Clínica Inteligente
-        </h1>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          Entre com o seu e-mail e senha da clínica.
-        </p>
+    <div className="flex flex-1 items-center justify-center bg-surface px-6 py-16">
+      <div className="w-full max-w-sm">
+        {/* Marca acima do cartão, com respiro generoso: é o gesto que faz a tela
+            parecer cuidada em vez de formulário de sistema. */}
+        <div className="mb-8 text-center">
+          <h1 className="font-display text-3xl text-ink">
+            Clínica<span className="text-primary">.</span>
+          </h1>
+          <p className="mt-2 text-sm text-ink-muted">
+            Gestão e atendimento em um lugar só
+          </p>
+        </div>
 
-        <form action={entrar} className="mt-6">
-          <button
-            type="submit"
-            className="w-full rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
-          >
-            Entrar
-          </button>
-        </form>
+        <div className="rounded-card border border-border bg-canvas p-8 shadow-soft">
+          <h2 className="text-lg text-ink">Entrar</h2>
+          <p className="mt-1.5 text-sm text-ink-muted">
+            Use o e-mail e a senha cadastrados pela sua clínica.
+          </p>
 
-        <p className="mt-6 text-xs leading-relaxed text-zinc-500">
-          Você será levado à tela de login do Keycloak. Em desenvolvimento, use{" "}
-          <code className="rounded bg-zinc-100 px-1 py-0.5 dark:bg-zinc-800">
+          <form action={entrar} className="mt-6">
+            <Button type="submit" size="lg" full>
+              Continuar
+            </Button>
+          </form>
+        </div>
+
+        <p className="mt-6 text-center text-xs leading-relaxed text-ink-subtle">
+          Em desenvolvimento: entre como{" "}
+          <code className="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-ink-muted">
             bia.secretaria
           </code>{" "}
           ou{" "}
-          <code className="rounded bg-zinc-100 px-1 py-0.5 dark:bg-zinc-800">
+          <code className="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-ink-muted">
             rita.owner
           </code>{" "}
           com a senha{" "}
-          <code className="rounded bg-zinc-100 px-1 py-0.5 dark:bg-zinc-800">dev123</code>{" "}
+          <code className="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-ink-muted">
+            dev123
+          </code>{" "}
           para ver clínicas diferentes.
         </p>
-      </main>
+      </div>
     </div>
   );
 }

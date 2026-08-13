@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { sair } from "@/lib/actions";
 import { apiFetch, type Paciente } from "@/lib/api";
+import { AppShell, PageHeader } from "@/components/app-shell";
+import { Card, EmptyState } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 function formatarTelefone(e164: string) {
   // +5511987654321 -> (11) 98765-4321
@@ -9,81 +12,95 @@ function formatarTelefone(e164: string) {
   return m ? `(${m[1]}) ${m[2]}-${m[3]}` : e164;
 }
 
+function iniciais(nome: string) {
+  return nome
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join("");
+}
+
 export default async function PacientesPage() {
   const session = await auth();
 
-  // A checagem de sessao acontece aqui, no servidor, e nao num middleware/proxy.
-  // Middleware roda antes e sem acesso a tudo, servindo como otimizacao — a verificacao
-  // que vale e a que fica junto do dado.
+  // A checagem de sessão acontece aqui, no servidor, e não num middleware/proxy.
+  // Middleware roda antes e sem acesso a tudo, servindo como otimização — a
+  // verificação que vale é a que fica junto do dado.
   if (!session || session.error) {
     redirect("/");
   }
 
   const pacientes = await apiFetch<Paciente[]>("/patients");
+  const podeCadastrar = session.roles.some((r) => r === "OWNER" || r === "SECRETARY");
 
   return (
-    <div className="flex flex-1 flex-col bg-zinc-50 dark:bg-zinc-950">
-      <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-          <div>
-            <h1 className="font-semibold text-zinc-900 dark:text-zinc-50">Pacientes</h1>
-            <p className="mt-0.5 text-xs text-zinc-500">
-              {session.user?.name ?? session.user?.email}
-              {session.roles.length > 0 && ` · ${session.roles.join(", ")}`}
-              {session.tenantId && ` · clínica ${session.tenantId.slice(0, 8)}`}
-            </p>
-          </div>
+    <AppShell
+      atual="/pacientes"
+      usuario={session.user?.name ?? session.user?.email ?? "—"}
+      papeis={session.roles}
+    >
+      <PageHeader
+        titulo="Pacientes"
+        descricao={
+          pacientes.length === 1
+            ? "1 paciente cadastrada"
+            : `${pacientes.length} pacientes cadastradas`
+        }
+        acao={podeCadastrar ? <Button size="md">Nova paciente</Button> : undefined}
+      />
 
-          <form action={sair}>
-            <button
-              type="submit"
-              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-            >
-              Sair
-            </button>
-          </form>
-        </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-8">
-        {pacientes.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-500 dark:border-zinc-700">
-            Nenhum paciente cadastrado nesta clínica.
-          </p>
-        ) : (
-          <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-zinc-200 text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Nome</th>
-                  <th className="px-4 py-3 font-medium">Telefone</th>
-                  <th className="px-4 py-3 font-medium">Cadastro</th>
+      {pacientes.length === 0 ? (
+        <EmptyState
+          title="Nenhuma paciente ainda"
+          description="Assim que a recepção cadastrar a primeira ficha, ela aparece aqui."
+          action={podeCadastrar ? <Button>Cadastrar paciente</Button> : undefined}
+        />
+      ) : (
+        <Card className="overflow-hidden">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="px-5 py-3 text-xs font-medium uppercase tracking-wide text-ink-subtle">
+                  Paciente
+                </th>
+                <th className="px-5 py-3 text-xs font-medium uppercase tracking-wide text-ink-subtle">
+                  Telefone
+                </th>
+                <th className="px-5 py-3 text-xs font-medium uppercase tracking-wide text-ink-subtle">
+                  Cadastro
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {pacientes.map((p) => (
+                <tr key={p.id} className="transition-colors hover:bg-surface">
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-soft font-display text-xs text-primary">
+                        {iniciais(p.fullName)}
+                      </span>
+                      <span className="text-ink">{p.fullName}</span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3.5 text-ink-muted">
+                    {formatarTelefone(p.phoneE164)}
+                  </td>
+                  <td className="px-5 py-3.5 text-ink-subtle">
+                    {new Date(p.createdAt).toLocaleDateString("pt-BR")}
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {pacientes.map((p) => (
-                  <tr key={p.id}>
-                    <td className="px-4 py-3 text-zinc-900 dark:text-zinc-100">
-                      {p.fullName}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
-                      {formatarTelefone(p.phoneE164)}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-500">
-                      {new Date(p.createdAt).toLocaleDateString("pt-BR")}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
 
-        <p className="mt-6 text-xs text-zinc-500">
-          Esta lista vem da API com o filtro por clínica aplicado no servidor e no banco.
-          Saia e entre como outro usuário para ver outro conjunto de pacientes.
-        </p>
-      </main>
-    </div>
+      <p className="mt-6 flex items-center gap-2 text-xs text-ink-subtle">
+        <Badge tone="primary">Isolamento por clínica</Badge>
+        Esta lista já vem filtrada pela API e pelo banco. Saia e entre como outra
+        usuária para ver outro conjunto.
+      </p>
+    </AppShell>
   );
 }

@@ -4,6 +4,7 @@ using Clinica.Api.OpenApi;
 using Clinica.Api.Tenancy;
 using Clinica.Domain.Tenancy;
 using Clinica.Infrastructure;
+using Clinica.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 
@@ -57,6 +58,10 @@ var connectionString = builder.Configuration.GetConnectionString("Clinica")
 
 builder.Services.AddClinicaPersistence(connectionString);
 
+// Administracao de contas da equipe (tela de Configuracoes).
+builder.Services.Configure<KeycloakAdminOptions>(builder.Configuration.GetSection("Keycloak:Admin"));
+builder.Services.AddHttpClient<KeycloakAdminClient>();
+
 builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
@@ -90,6 +95,7 @@ app.MapProcedureEndpoints();
 app.MapAppointmentEndpoints();
 app.MapPaymentEndpoints();
 app.MapStockEndpoints();
+app.MapTeamEndpoints();
 
 app.Run();
 

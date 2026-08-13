@@ -12,11 +12,14 @@ import { cn } from "@/lib/cn";
  * que leva a 404.
  */
 const SECOES = [
-  { href: "/agenda", label: "Agenda", pronto: true },
-  { href: "/pacientes", label: "Pacientes", pronto: true },
-  { href: "/procedimentos", label: "Procedimentos", pronto: true },
-  { href: "/financeiro", label: "Financeiro", pronto: true },
-  { href: "/estoque", label: "Estoque", pronto: true },
+  { href: "/agenda", label: "Agenda", pronto: true, papeis: null },
+  { href: "/pacientes", label: "Pacientes", pronto: true, papeis: null },
+  { href: "/procedimentos", label: "Procedimentos", pronto: true, papeis: null },
+  // Financeiro e Configurações somem para quem não pode entrar: mostrar link que
+  // leva a "sem acesso" é convidar a pessoa a bater na porta fechada todo dia.
+  { href: "/financeiro", label: "Financeiro", pronto: true, papeis: ["OWNER", "FINANCE"] },
+  { href: "/estoque", label: "Estoque", pronto: true, papeis: null },
+  { href: "/configuracoes", label: "Configurações", pronto: true, papeis: ["OWNER"] },
 ];
 
 export function AppShell({
@@ -59,7 +62,9 @@ export function AppShell({
             </Link>
 
             <nav className="hidden items-center gap-1 sm:flex">
-              {SECOES.map((secao) =>
+              {SECOES.filter(
+                (secao) => secao.papeis === null || secao.papeis.some((p) => papeis.includes(p)),
+              ).map((secao) =>
                 secao.pronto ? (
                   <Link
                     key={secao.href}

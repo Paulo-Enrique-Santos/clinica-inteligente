@@ -112,6 +112,19 @@
       "serviceAccountsEnabled": false
     },
     {
+      "clientId": "clinica-admin",
+      "name": "Administracao de usuarios (backend)",
+      "description": "Usado pela API .NET para criar contas da equipe pela tela de Configuracoes. Separado do client dos agentes de proposito: pela ADR 0002 o agente tem permissoes MENORES que as de humano, entao nao pode dividir credencial com quem administra usuarios.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "dev-secret-clinica-admin",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true
+    },
+    {
       "clientId": "clinica-agents",
       "name": "Servico de Agentes (Python)",
       "description": "Client credentials para o servico de agentes. O token dele NAO carrega tenant_id: acesso a dado de tenant usa token com escopo de execucao emitido pela API (ver docs/adr/0002).",
@@ -221,6 +234,14 @@
       "enabled": true,
       "serviceAccountClientId": "clinica-agents",
       "realmRoles": ["AGENT"]
+    },
+    {
+      "username": "service-account-clinica-admin",
+      "enabled": true,
+      "serviceAccountClientId": "clinica-admin",
+      "clientRoles": {
+        "realm-management": ["manage-users", "view-users", "query-users"]
+      }
     }
   ],
 

@@ -187,6 +187,16 @@ export type Cobranca = {
   paidAt: string | null;
 };
 
+export type MembroDaEquipe = {
+  id: string;
+  username: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  enabled: boolean;
+  roles: string[];
+};
+
 export type ItemDeEstoque = {
   id: string;
   name: string;

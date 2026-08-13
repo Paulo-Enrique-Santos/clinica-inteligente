@@ -131,15 +131,37 @@ public class KeycloakAdminClient(
         var id = criacao.Headers.Location?.Segments.LastOrDefault()?.Trim('/')
             ?? throw new InvalidOperationException("Keycloak nao devolveu o id da conta criada.");
 
-        await AtribuirPapelAsync(id, conta.Role, ct);
+        try
+        {
+            await AtribuirPapelAsync(id, conta.Role, ct);
+        }
+        catch
+        {
+            // Criar a conta e falhar ao dar o papel deixaria uma pessoa capaz de entrar
+            // no sistema sem enxergar nada — e com o nome de usuario ocupado, impedindo
+            // a dona de simplesmente tentar de novo. Desfaz e propaga.
+            await http.DeleteAsync($"{Base}/users/{id}", ct);
+            throw;
+        }
 
         return id;
     }
 
     private async Task AtribuirPapelAsync(string usuarioId, string papel, CancellationToken ct)
     {
-        var definicao = await http.GetFromJsonAsync<PapelKeycloak>($"{Base}/roles/{papel}", ct)
-            ?? throw new InvalidOperationException($"Papel '{papel}' nao existe no realm.");
+        // Os papeis vem do endpoint de "atribuiveis a este usuario", e nao de
+        // /roles/{nome}.
+        //
+        // Ler um papel pelo nome exige view-realm; listar os atribuiveis exige apenas
+        // manage-users, que e o que esta credencial tem. Preferimos ajustar a chamada a
+        // ampliar a permissao: quanto menos este client puder fazer no realm, melhor.
+        var atribuiveis = await http.GetFromJsonAsync<List<PapelKeycloak>>(
+            $"{Base}/users/{usuarioId}/role-mappings/realm/available", ct) ?? [];
+
+        var definicao = atribuiveis.FirstOrDefault(p => p.Name == papel)
+            ?? throw new InvalidOperationException(
+                $"Papel '{papel}' nao esta disponivel para atribuicao. " +
+                $"Disponiveis: {string.Join(", ", atribuiveis.Select(p => p.Name))}.");
 
         var resposta = await http.PostAsJsonAsync(
             $"{Base}/users/{usuarioId}/role-mappings/realm",

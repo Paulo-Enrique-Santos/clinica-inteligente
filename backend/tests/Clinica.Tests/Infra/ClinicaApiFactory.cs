@@ -1,7 +1,10 @@
+using Clinica.Infrastructure;
+using Clinica.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -28,6 +31,29 @@ public class ClinicaApiFactory(string connectionString) : WebApplicationFactory<
 
         builder.ConfigureTestServices(services =>
         {
+            // Trocar a connection string so pela configuracao NAO e confiavel com o modelo
+            // de hosting minimo: o appsettings.json da API pode vencer o override, e ai o
+            // teste conversa com o banco de DESENVOLVIMENTO em localhost:5432 sem avisar
+            // ninguem. Foi exatamente o que aconteceu aqui — passou na maquina e quebrou na
+            // CI, que nao tem nada na 5432.
+            //
+            // Remover e reregistrar o DbContext e deterministico: ConfigureTestServices roda
+            // depois do ConfigureServices da aplicacao, entao esta versao e a que sobra.
+            var registrosDoContexto = services
+                .Where(d =>
+                    d.ServiceType == typeof(ClinicaDbContext) ||
+                    d.ServiceType == typeof(DbContextOptions) ||
+                    (d.ServiceType.IsGenericType &&
+                     d.ServiceType.GetGenericArguments().Contains(typeof(ClinicaDbContext))))
+                .ToList();
+
+            foreach (var registro in registrosDoContexto)
+            {
+                services.Remove(registro);
+            }
+
+            services.AddClinicaPersistence(connectionString);
+
             services
                 .AddAuthentication(TestAuthHandler.SchemeName)
                 .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });

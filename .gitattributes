@@ -1,0 +1,17 @@
+# Normaliza fim de linha no repositorio (evita CRLF quebrando script em container Linux)
+* text=auto eol=lf
+
+# Scripts que rodam dentro de containers PRECISAM de LF
+*.sh text eol=lf
+*.bash text eol=lf
+
+# Arquivos que devem manter CRLF no Windows
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binarios
+*.png binary
+*.jpg binary
+*.ico binary
+*.pdf binary

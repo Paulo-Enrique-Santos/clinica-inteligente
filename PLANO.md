@@ -427,6 +427,14 @@ Contrato HTTP entre os dois; o Python **não** acessa o banco — só chama tool
 **2. Provedor de LLM — Anthropic (Claude), único.** ✅
 Roteamento S/M/L = Haiku 4.5 / Sonnet 5 / Opus 5. Gateway agnóstico para trocar depois.
 
+**5. Destino — clínica real + portfólio, os dois.** ✅
+Existe uma clínica real, com implantação assim que o sistema estiver maduro. Consequências:
+- Qualidade de produção desde a Fase 0 (multi-tenant sério, auditoria, LGPD) — nada de protótipo descartável.
+- Investimento extra em duas telas: **simulador** e **dashboard de traces/custo** (servem para dev e para apresentação).
+- **Ação de calendário, começa já:** coletar 10–15 mensagens reais (anonimizadas) da secretária e de
+  cada doutora para alimentar o Style Profile da Fase 4. Isso depende de pessoas, não de código —
+  se for pedido só na Fase 4, a fase trava esperando.
+
 ### Ainda em aberto
 
 **3. Hospedagem.** Oracle Free Tier é grátis mas historicamente chato de conseguir a VM ARM.

@@ -1,0 +1,18 @@
+<Project>
+
+  <!-- Configuracao comum a todos os projetos do backend. Mantem os .csproj limpos. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Warning aqui vira erro. Em sistema que lida com dado de saude, "warning que
+         ninguem le" e como nao ter warning nenhum. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancela execucoes antigas do mesmo branch: nao adianta esperar CI de commit que ja foi
+# substituido.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (.NET)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          # Le a versao do global.json, para CI e maquina local nao divergirem.
+          global-json-file: global.json
+
+      - name: Restaurar
+        run: dotnet restore backend/Clinica.slnx
+
+      - name: Compilar
+        # Warning e erro aqui (ver backend/Directory.Build.props). Foi assim que uma
+        # vulnerabilidade alta em dependencia transitiva apareceu antes de virar problema.
+        run: dotnet build backend/Clinica.slnx --configuration Release --no-restore
+
+      - name: Testes
+        # Inclui o gate de isolamento entre tenants. Os testes sobem Postgres via
+        # Testcontainers — o runner do GitHub ja tem Docker disponivel.
+        run: dotnet test backend/Clinica.slnx --configuration Release --no-build --verbosity normal

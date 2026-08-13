@@ -1,4 +1,5 @@
 using Clinica.Infrastructure.Persistence;
+using Clinica.Infrastructure.Scheduling;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -24,6 +25,8 @@ public static class InfrastructureServiceCollectionExtensions
                 .UseSnakeCaseNamingConvention()
                 .AddInterceptors(serviceProvider.GetRequiredService<TenantConnectionInterceptor>());
         });
+
+        services.AddScoped<DisponibilidadeService>();
 
         return services;
     }

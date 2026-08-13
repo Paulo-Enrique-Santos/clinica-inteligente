@@ -1,6 +1,7 @@
 using Clinica.Domain.Appointments;
 using Clinica.Domain.Tenancy;
 using Clinica.Infrastructure.Persistence;
+using Clinica.Infrastructure.Scheduling;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -79,6 +80,7 @@ public static class AppointmentEndpoints
         group.MapPost("/", async (
             CreateAppointmentRequest request,
             ClinicaDbContext db,
+            DisponibilidadeService disponibilidade,
             CancellationToken ct) =>
         {
             var procedimento = await db.Procedures.FirstOrDefaultAsync(p => p.Id == request.ProcedureId, ct);
@@ -101,6 +103,19 @@ public static class AppointmentEndpoints
                 {
                     ["referencia"] = ["Paciente ou profissional nao encontrado nesta clinica."],
                 });
+            }
+
+            // Cabe no expediente da profissional? Esta checagem usa exatamente o mesmo
+            // cálculo que oferece os horários livres na tela.
+            var encaixe = await disponibilidade.PodeAgendarAsync(
+                request.ProfessionalId, request.StartsAt, procedimento.DurationMinutes, ct: ct);
+
+            if (!encaixe.Pode)
+            {
+                return Results.Problem(
+                    title: "Horario indisponivel",
+                    detail: encaixe.Motivo,
+                    statusCode: StatusCodes.Status409Conflict);
             }
 
             var atendimento = new Appointment

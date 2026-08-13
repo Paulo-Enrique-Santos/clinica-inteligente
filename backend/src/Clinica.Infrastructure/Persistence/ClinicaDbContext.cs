@@ -27,6 +27,8 @@ public class ClinicaDbContext(DbContextOptions<ClinicaDbContext> options, ITenan
 
     public DbSet<Patient> Patients => Set<Patient>();
     public DbSet<Professional> Professionals => Set<Professional>();
+    public DbSet<WorkSchedule> WorkSchedules => Set<WorkSchedule>();
+    public DbSet<ScheduleException> ScheduleExceptions => Set<ScheduleException>();
     public DbSet<Procedure> Procedures => Set<Procedure>();
     public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<Payment> Payments => Set<Payment>();

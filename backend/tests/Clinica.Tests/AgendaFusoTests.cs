@@ -77,13 +77,16 @@ public class AgendaFusoTests(PostgresFixture postgres) : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Atendimento_das_23h_nao_escorrega_para_o_dia_seguinte()
+    public async Task Atendimento_da_noite_nao_escorrega_para_o_dia_seguinte()
     {
         var (paciente, procedimento, profissional) = await MontarCenario();
 
-        // 23h no fuso da clínica é 02h do dia seguinte em UTC. Se a janela do dia
+        // 22h no fuso da clínica é 01h do dia seguinte em UTC. Se a janela do dia
         // fosse montada em UTC, este atendimento sumiria da agenda de quem marcou.
-        var inicio = new DateTimeOffset(2027, 8, 12, 23, 0, 0, FusoDaClinica);
+        //
+        // Usa 22h, e não 23h, porque o procedimento leva 1h: atendimento que termina
+        // depois da meia-noite é recusado por desenho (ver o teste logo abaixo).
+        var inicio = new DateTimeOffset(2027, 8, 12, 22, 0, 0, FusoDaClinica);
 
         var criado = await _client.PostAsJsonAsync("/appointments", new
         {
@@ -102,6 +105,26 @@ public class AgendaFusoTests(PostgresFixture postgres) : IAsyncLifetime
             $"/appointments?de={de}&ate={ate}");
 
         Assert.Contains(agenda!, a => a.Id == id);
+    }
+
+    [Fact]
+    public async Task Atendimento_que_terminaria_depois_da_meia_noite_e_recusado()
+    {
+        var (paciente, procedimento, profissional) = await MontarCenario();
+
+        // Limitação conhecida e deliberada: o expediente é modelado em horas do dia, o
+        // que impede representar atendimento que atravessa a meia-noite. Uma clínica de
+        // estética não opera nesse horário; se um dia precisar, o expediente passa a ser
+        // guardado como intervalo absoluto, não como hora.
+        var resposta = await _client.PostAsJsonAsync("/appointments", new
+        {
+            patientId = paciente,
+            procedureId = procedimento,
+            professionalId = profissional,
+            startsAt = new DateTimeOffset(2027, 8, 13, 23, 30, 0, FusoDaClinica),
+        });
+
+        Assert.Equal(HttpStatusCode.Conflict, resposta.StatusCode);
     }
 
     private async Task<(Guid Paciente, Guid Procedimento, Guid Profissional)> MontarCenario()

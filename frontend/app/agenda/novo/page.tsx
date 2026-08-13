@@ -9,8 +9,8 @@ import {
 import { criarAtendimento } from "@/lib/actions/agenda";
 import { AppShell, PageHeader } from "@/components/app-shell";
 import { Card, CardBody, EmptyState } from "@/components/ui/card";
-import { Busca } from "@/components/ui/busca";
 import { Field, Input } from "@/components/ui/field";
+import { CamposDeAgendamento } from "./campos";
 import { Formulario } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -82,36 +82,7 @@ export default async function NovoAtendimentoPage(props: PageProps<"/agenda/novo
       <Card className="max-w-lg">
         <CardBody>
           <Formulario acao={criarAtendimento} cancelarHref="/agenda" rotuloEnviar="Agendar">
-            <Busca
-              name="paciente"
-              recurso="pacientes"
-              label="Paciente"
-              placeholder="Nome ou telefone"
-            />
-
-            <Busca
-              name="procedimento"
-              recurso="procedimentos"
-              label="Procedimento"
-              placeholder="Comece a digitar"
-            />
-
-            <Busca
-              name="profissional"
-              recurso="profissionais"
-              label="Profissional"
-              placeholder="Comece a digitar"
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Data" htmlFor="data">
-                <Input id="data" name="data" type="date" required defaultValue={dia} />
-              </Field>
-
-              <Field label="Horário" htmlFor="hora">
-                <Input id="hora" name="hora" type="time" step={300} required />
-              </Field>
-            </div>
+            <CamposDeAgendamento diaInicial={dia} />
 
             <Field label="Observações" htmlFor="observacoes">
               <Input id="observacoes" name="observacoes" placeholder="Opcional" />

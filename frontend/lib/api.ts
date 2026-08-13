@@ -20,6 +20,17 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   return resposta.json() as Promise<T>;
 }
 
+/** Erro de rede: a API não respondeu. Distinto de "respondeu com erro". */
+export class ApiForaDoArError extends Error {
+  constructor(path: string, causa: unknown) {
+    super(
+      `Nao foi possivel alcancar a API em ${API_BASE}${path}. ` +
+        `Ela esta rodando? Detalhe: ${causa instanceof Error ? causa.message : causa}`,
+    );
+    this.name = "ApiForaDoArError";
+  }
+}
+
 /** Formato de erro do ASP.NET (RFC 7807). */
 export type ProblemDetails = {
   title?: string;
@@ -68,17 +79,23 @@ async function requisicao(path: string, init?: RequestInit) {
     throw new Error("Sem sessao ativa.");
   }
 
-  return fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      ...init?.headers,
-      Authorization: `Bearer ${session.accessToken}`,
-      "Content-Type": "application/json",
-    },
-    // Dado de clínica muda o tempo todo e é por tenant: cache aqui seria, na melhor
-    // hipótese, informação velha; na pior, dado de uma clínica servido para outra.
-    cache: "no-store",
-  });
+  try {
+    return await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers: {
+        ...init?.headers,
+        Authorization: `Bearer ${session.accessToken}`,
+        "Content-Type": "application/json",
+      },
+      // Dado de clínica muda o tempo todo e é por tenant: cache aqui seria, na melhor
+      // hipótese, informação velha; na pior, dado de uma clínica servido para outra.
+      cache: "no-store",
+    });
+  } catch (causa) {
+    // "fetch failed" sozinho no log não ajuda ninguém a às 8h da manhã descobrir que
+    // a API não subiu. A mensagem diz o endereço tentado e a pergunta certa.
+    throw new ApiForaDoArError(path, causa);
+  }
 }
 
 /** Junta as mensagens de validação num texto só, para exibir acima do formulário. */

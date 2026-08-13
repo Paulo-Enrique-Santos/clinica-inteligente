@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { sair } from "@/lib/actions";
 import { Button } from "./ui/button";
@@ -33,8 +34,20 @@ export function AppShell({
       <header className="border-b border-border bg-canvas">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-6 px-6">
           <div className="flex items-center gap-8">
-            <Link href="/pacientes" className="font-display text-lg text-ink">
-              Clínica<span className="text-primary">.</span>
+            <Link href="/pacientes" className="flex items-center gap-2.5">
+              {/* alt vazio de propósito: o nome vem logo ao lado, e leitor de tela
+                  anunciando duas vezes é ruído. */}
+              <Image
+                src="/cliniq-mark.png"
+                alt=""
+                width={140}
+                height={157}
+                priority
+                className="h-7 w-auto"
+              />
+              <span className="font-display text-lg tracking-[0.16em] text-ink">
+                CLINIQ
+              </span>
             </Link>
 
             <nav className="hidden items-center gap-1 sm:flex">

@@ -74,21 +74,11 @@
   margin-bottom: 2rem;
 }
 
-.cl-brand-mark {
-  font-family: var(--font-display);
-  font-size: 1.875rem;
-  letter-spacing: -0.015em;
-  color: var(--ink);
-}
-
-.cl-dot {
-  color: var(--primary);
-}
-
-.cl-brand-tagline {
-  margin: 0.5rem 0 0;
-  font-size: 0.875rem;
-  color: var(--ink-muted);
+.cl-logo {
+  width: 13rem;
+  height: auto;
+  /* O PNG tem fundo transparente; a largura fixa mantem a marca do mesmo
+     tamanho que no painel do Next. */
 }
 
 /* --- Cartao --------------------------------------------------------------- */

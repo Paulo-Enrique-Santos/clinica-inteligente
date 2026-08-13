@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { entrar } from "@/lib/actions";
@@ -15,13 +16,15 @@ export default async function Home() {
       <div className="w-full max-w-sm">
         {/* Marca acima do cartão, com respiro generoso: é o gesto que faz a tela
             parecer cuidada em vez de formulário de sistema. */}
-        <div className="mb-8 text-center">
-          <h1 className="font-display text-3xl text-ink">
-            Clínica<span className="text-primary">.</span>
-          </h1>
-          <p className="mt-2 text-sm text-ink-muted">
-            Gestão e atendimento em um lugar só
-          </p>
+        <div className="mb-8 flex justify-center">
+          <Image
+            src="/cliniq-logo.png"
+            alt="CLINIQ — Clínica Inteligente"
+            width={440}
+            height={364}
+            priority
+            className="h-auto w-52"
+          />
         </div>
 
         <div className="rounded-card border border-border bg-canvas p-8 shadow-soft">

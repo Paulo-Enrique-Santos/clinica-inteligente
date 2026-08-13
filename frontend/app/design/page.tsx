@@ -43,9 +43,7 @@ export default function DesignPage() {
           <p className="text-xs uppercase tracking-widest text-ink-subtle">
             Sistema de design
           </p>
-          <h1 className="mt-2 text-3xl text-ink">
-            Clínica<span className="text-primary">.</span>
-          </h1>
+          <h1 className="mt-2 text-3xl tracking-[0.16em] text-ink">CLINIQ</h1>
           <p className="mt-3 max-w-lg text-sm text-ink-muted">
             Branco dominante, neutros quentes e um acento rosé. Serifa nos títulos
             para a elegância; sans no corpo para leitura em tabela.

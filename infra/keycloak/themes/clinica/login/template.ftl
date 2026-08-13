@@ -50,8 +50,7 @@
 <div class="${properties.kcLoginClass!}">
 
     <div id="kc-header" class="${properties.kcHeaderClass!}">
-        <div id="kc-header-wrapper" class="${properties.kcHeaderWrapperClass!}">Clínica<span class="cl-dot">.</span></div>
-        <p class="cl-brand-tagline">Gestão e atendimento em um lugar só</p>
+        <img src="${url.resourcesPath}/img/cliniq-logo.png" alt="CLINIQ — Clínica Inteligente" class="cl-logo" />
     </div>
 
     <div class="${properties.kcFormCardClass!}">

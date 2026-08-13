@@ -1,4 +1,21 @@
-# Sistema de design
+# Sistema de design — CLINIQ
+
+## Marca
+
+| Arquivo | Onde é usado |
+|---|---|
+| `frontend/public/cliniq-logo.png` (440×364) | tela de login do Next e tela do Keycloak |
+| `frontend/public/cliniq-mark.png` (140×157) | símbolo no cabeçalho do sistema |
+| `frontend/app/icon.png` (512×512) | favicon e ícone de app |
+| `infra/keycloak/themes/clinica/login/resources/img/cliniq-logo.png` | cópia para o Keycloak |
+
+O fundo off-white do arquivo original foi convertido em transparência, senão apareceria um
+retângulo bege sobre o branco dos cards.
+
+> **Vale pedir o logo em SVG.** É desenho de linha: em SVG ficaria em torno de 10 KB (contra
+> 160 KB do PNG), escalaria sem borrar em qualquer tela e permitiria recolorir o símbolo por
+> CSS. As duas cópias do PNG também deixariam de precisar andar sincronizadas.
+
 
 Guia vivo em **http://localhost:3000/design** — paleta, tipografia e todos os componentes
 numa tela só. Alterou token? Confira ali antes de sair aplicando nas telas.

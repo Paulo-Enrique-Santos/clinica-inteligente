@@ -1,4 +1,4 @@
-# Clínica Inteligente
+# CLINIQ — Clínica Inteligente
 
 Sistema de gestão para clínica de estética com uma camada de agentes de IA operando os
 canais de atendimento (WhatsApp): confirmação de agenda, acompanhamento pós-procedimento,

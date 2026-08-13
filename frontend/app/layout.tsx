@@ -21,7 +21,7 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Clínica Inteligente",
+  title: "CLINIQ — Clínica Inteligente",
   description: "Gestão de clínica com agentes de IA",
 };
 

@@ -3,31 +3,15 @@ import { auth } from "@/auth";
 const API_BASE = process.env.API_BASE_URL ?? "http://localhost:5231";
 
 /**
- * Chama a API .NET em nome do usuario logado.
+ * Chama a API .NET em nome do usuário logado.
  *
- * Roda SEMPRE no servidor (Server Component ou Server Action). Isso e uma decisao de
- * seguranca, nao de conveniencia: o access token nunca chega ao navegador, entao nao ha
- * como ser roubado por XSS ou por extensao instalada na maquina da clinica. De quebra,
- * some a necessidade de CORS — quem fala com a API e o servidor do Next.
+ * Roda SEMPRE no servidor (Server Component ou Server Action). Isso é uma decisão de
+ * segurança, não de conveniência: o access token nunca chega ao navegador, então não há
+ * como ser roubado por XSS ou por extensão instalada na máquina da clínica. De quebra,
+ * some a necessidade de CORS — quem fala com a API é o servidor do Next.
  */
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const session = await auth();
-
-  if (!session?.accessToken) {
-    throw new Error("Sem sessao ativa.");
-  }
-
-  const resposta = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      ...init?.headers,
-      Authorization: `Bearer ${session.accessToken}`,
-      "Content-Type": "application/json",
-    },
-    // Dado de paciente muda o tempo todo e e por clinica: cache aqui seria, na melhor
-    // hipotese, informacao velha; na pior, dado de uma clinica servido para outra.
-    cache: "no-store",
-  });
+  const resposta = await requisicao(path, init);
 
   if (!resposta.ok) {
     throw new Error(`API respondeu ${resposta.status} em ${path}`);
@@ -36,6 +20,78 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   return resposta.json() as Promise<T>;
 }
 
+/** Formato de erro do ASP.NET (RFC 7807). */
+export type ProblemDetails = {
+  title?: string;
+  detail?: string;
+  errors?: Record<string, string[]>;
+};
+
+export type ApiResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; status: number; problem: ProblemDetails };
+
+/**
+ * Para escrita. Ao contrário de <c>apiFetch</c>, não lança em erro: devolve o problema
+ * para a tela mostrar no campo certo. Validação e conflito de horário são resultados
+ * esperados de um formulário, não exceções.
+ */
+export async function apiSend<T = unknown>(
+  path: string,
+  method: "POST" | "PUT" | "PATCH" | "DELETE",
+  body?: unknown,
+): Promise<ApiResult<T>> {
+  const resposta = await requisicao(path, {
+    method,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+  if (resposta.ok) {
+    const texto = await resposta.text();
+    return { ok: true, data: (texto ? JSON.parse(texto) : undefined) as T };
+  }
+
+  let problem: ProblemDetails = {};
+  try {
+    problem = (await resposta.json()) as ProblemDetails;
+  } catch {
+    problem = { title: `Erro ${resposta.status}` };
+  }
+
+  return { ok: false, status: resposta.status, problem };
+}
+
+async function requisicao(path: string, init?: RequestInit) {
+  const session = await auth();
+
+  if (!session?.accessToken) {
+    throw new Error("Sem sessao ativa.");
+  }
+
+  return fetch(`${API_BASE}${path}`, {
+    ...init,
+    headers: {
+      ...init?.headers,
+      Authorization: `Bearer ${session.accessToken}`,
+      "Content-Type": "application/json",
+    },
+    // Dado de clínica muda o tempo todo e é por tenant: cache aqui seria, na melhor
+    // hipótese, informação velha; na pior, dado de uma clínica servido para outra.
+    cache: "no-store",
+  });
+}
+
+/** Junta as mensagens de validação num texto só, para exibir acima do formulário. */
+export function mensagemDeErro(problem: ProblemDetails): string {
+  if (problem.errors) {
+    const mensagens = Object.values(problem.errors).flat();
+    if (mensagens.length > 0) return mensagens.join(" ");
+  }
+  return problem.detail ?? problem.title ?? "Nao foi possivel concluir a operacao.";
+}
+
+// --- Tipos devolvidos pela API -------------------------------------------
+
 export type Paciente = {
   id: string;
   fullName: string;
@@ -43,4 +99,64 @@ export type Paciente = {
   birthDate: string | null;
   notes: string | null;
   createdAt: string;
+};
+
+export type Procedimento = {
+  id: string;
+  name: string;
+  durationMinutes: number;
+  price: number;
+  suppliesCost: number;
+  margin: number;
+  description: string | null;
+  active: boolean;
+};
+
+export type Profissional = {
+  id: string;
+  fullName: string;
+  displayName: string;
+  specialty: string | null;
+  active: boolean;
+};
+
+export type Atendimento = {
+  id: string;
+  patientId: string;
+  patientName: string;
+  patientPhone: string;
+  procedureId: string;
+  procedureName: string;
+  professionalId: string;
+  professionalName: string;
+  startsAt: string;
+  endsAt: string;
+  status: string;
+  price: number;
+  notes: string | null;
+};
+
+export type Cobranca = {
+  id: string;
+  appointmentId: string;
+  patientName: string;
+  patientPhone: string;
+  procedureName: string;
+  appointmentAt: string;
+  amount: number;
+  dueDate: string;
+  status: string;
+  overdue: boolean;
+  method: string | null;
+  paidAt: string | null;
+};
+
+export type ItemDeEstoque = {
+  id: string;
+  name: string;
+  unit: string;
+  balance: number;
+  minimumQuantity: number;
+  active: boolean;
+  belowMinimum: boolean;
 };

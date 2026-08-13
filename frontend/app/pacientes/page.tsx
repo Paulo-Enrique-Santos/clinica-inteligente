@@ -1,16 +1,11 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { apiFetch, type Paciente } from "@/lib/api";
+import { formatarTelefone } from "@/lib/telefone";
 import { AppShell, PageHeader } from "@/components/app-shell";
 import { Card, EmptyState } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-
-function formatarTelefone(e164: string) {
-  // +5511987654321 -> (11) 98765-4321
-  const m = e164.match(/^\+55(\d{2})(\d{4,5})(\d{4})$/);
-  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : e164;
-}
 
 function iniciais(nome: string) {
   return nome
@@ -47,14 +42,26 @@ export default async function PacientesPage() {
             ? "1 paciente cadastrada"
             : `${pacientes.length} pacientes cadastradas`
         }
-        acao={podeCadastrar ? <Button size="md">Nova paciente</Button> : undefined}
+        acao={
+          podeCadastrar ? (
+            <Link href="/pacientes/nova">
+              <Button>Nova paciente</Button>
+            </Link>
+          ) : undefined
+        }
       />
 
       {pacientes.length === 0 ? (
         <EmptyState
           title="Nenhuma paciente ainda"
           description="Assim que a recepção cadastrar a primeira ficha, ela aparece aqui."
-          action={podeCadastrar ? <Button>Cadastrar paciente</Button> : undefined}
+          action={
+            podeCadastrar ? (
+              <Link href="/pacientes/nova">
+                <Button>Cadastrar paciente</Button>
+              </Link>
+            ) : undefined
+          }
         />
       ) : (
         <Card className="overflow-hidden">
@@ -95,12 +102,6 @@ export default async function PacientesPage() {
           </table>
         </Card>
       )}
-
-      <p className="mt-6 flex items-center gap-2 text-xs text-ink-subtle">
-        <Badge tone="primary">Isolamento por clínica</Badge>
-        Esta lista já vem filtrada pela API e pelo banco. Saia e entre como outra
-        usuária para ver outro conjunto.
-      </p>
     </AppShell>
   );
 }

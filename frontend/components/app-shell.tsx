@@ -12,10 +12,11 @@ import { cn } from "@/lib/cn";
  * que leva a 404.
  */
 const SECOES = [
+  { href: "/agenda", label: "Agenda", pronto: true },
   { href: "/pacientes", label: "Pacientes", pronto: true },
-  { href: "/agenda", label: "Agenda", pronto: false },
-  { href: "/financeiro", label: "Financeiro", pronto: false },
-  { href: "/estoque", label: "Estoque", pronto: false },
+  { href: "/procedimentos", label: "Procedimentos", pronto: true },
+  { href: "/financeiro", label: "Financeiro", pronto: true },
+  { href: "/estoque", label: "Estoque", pronto: true },
 ];
 
 export function AppShell({

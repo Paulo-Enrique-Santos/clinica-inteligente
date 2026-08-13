@@ -36,3 +36,44 @@ jobs:
         # Inclui o gate de isolamento entre tenants. Os testes sobem Postgres via
         # Testcontainers — o runner do GitHub ja tem Docker disponivel.
         run: dotnet test backend/Clinica.sln --configuration Release --no-build --verbosity normal
+
+  frontend:
+    name: Frontend (Next.js)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar
+        run: npm ci
+
+      - name: Tipos
+        run: npx tsc --noEmit
+
+      - name: Lint
+        # `next lint` foi removido no Next 16; o ESLint roda direto.
+        run: npx eslint .
+
+      - name: Build
+        # Valores de fachada: o build nao fala com o Keycloak nem com a API, mas o
+        # modulo de autenticacao le estas variaveis ao ser importado.
+        env:
+          AUTH_SECRET: build-only-nao-e-segredo-real
+          AUTH_URL: http://localhost:3000
+          AUTH_TRUST_HOST: "true"
+          AUTH_KEYCLOAK_ID: clinica-web
+          AUTH_KEYCLOAK_SECRET: build-only
+          AUTH_KEYCLOAK_ISSUER: http://localhost:8080/realms/clinica
+          API_BASE_URL: http://localhost:5231
+          APP_BASE_URL: http://localhost:3000
+        run: npm run build

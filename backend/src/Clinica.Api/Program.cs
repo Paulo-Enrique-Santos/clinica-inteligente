@@ -84,6 +84,9 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
    .WithName("Health");
 
 app.MapPatientEndpoints();
+app.MapProfessionalEndpoints();
+app.MapProcedureEndpoints();
+app.MapAppointmentEndpoints();
 
 app.Run();
 

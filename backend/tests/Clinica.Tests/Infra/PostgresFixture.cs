@@ -48,6 +48,11 @@ public class PostgresFixture : IAsyncLifetime
 
             GRANT ALL ON SCHEMA public TO clinica_owner;
             GRANT USAGE ON SCHEMA public TO clinica_app;
+
+            -- Extensoes sao provisionamento de banco, nao migration: exigem privilegio
+            -- que o usuario de migration nao tem. Aqui reproduzimos o que o
+            -- infra/postgres/init faz em desenvolvimento e producao.
+            CREATE EXTENSION IF NOT EXISTS btree_gist;
             """);
 
         // Migrations rodam como dono, exatamente como em producao.

@@ -34,6 +34,9 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$APP_DB_NAME" <<-E
     CREATE EXTENSION IF NOT EXISTS vector;
     CREATE EXTENSION IF NOT EXISTS pg_trgm;      -- busca textual (RAG hibrido)
     CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    -- btree_gist permite combinar igualdade (tenant, profissional) com sobreposicao
+    -- de intervalo na mesma constraint EXCLUDE da agenda.
+    CREATE EXTENSION IF NOT EXISTS btree_gist;
 
     -- Ninguem alem dos nossos papeis cria coisa no schema public.
     REVOKE ALL ON SCHEMA public FROM PUBLIC;

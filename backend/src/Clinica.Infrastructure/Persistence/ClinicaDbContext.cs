@@ -1,5 +1,8 @@
 using System.Linq.Expressions;
+using Clinica.Domain.Appointments;
 using Clinica.Domain.Patients;
+using Clinica.Domain.Procedures;
+using Clinica.Domain.Professionals;
 using Clinica.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,6 +23,9 @@ public class ClinicaDbContext(DbContextOptions<ClinicaDbContext> options, ITenan
     private readonly ITenantContext _tenant = tenant;
 
     public DbSet<Patient> Patients => Set<Patient>();
+    public DbSet<Professional> Professionals => Set<Professional>();
+    public DbSet<Procedure> Procedures => Set<Procedure>();
+    public DbSet<Appointment> Appointments => Set<Appointment>();
 
     /// <summary>
     /// Usado pelo filtro global. Nao lanca de proposito: sem tenant resolvido devolve

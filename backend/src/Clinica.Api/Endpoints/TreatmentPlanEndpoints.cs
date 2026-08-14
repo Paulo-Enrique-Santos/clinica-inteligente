@@ -194,8 +194,30 @@ public static class TreatmentPlanEndpoints
                 request.Parcelas ?? 1,
                 request.Sinal ?? 0);
 
+            if (!Enum.TryParse<PaymentMethod>(request.Meio, true, out var meio))
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    [nameof(request.Meio)] =
+                        [$"Meio invalido. Use: {string.Join(", ", Enum.GetNames<PaymentMethod>())}."],
+                });
+            }
+
+            var agora = DateTimeOffset.UtcNow;
+
             foreach (var parcela in parcelas)
             {
+                // Dinheiro e cartão entram efetivados: o dinheiro já passou pela
+                // maquininha ou pela gaveta, e ficar pendente obrigaria a recepção a dar
+                // baixa manual em algo que já aconteceu.
+                //
+                // PIX parcelado é o único que fica pendente de verdade — cada parcela
+                // depende de a paciente lembrar de pagar. O sinal, quando existe, é
+                // pago na hora e por isso já nasce efetivado.
+                var jaEfetivada = meio != PaymentMethod.Pix
+                    || forma == FormaDePagamento.AVista
+                    || (forma == FormaDePagamento.SinalMaisParcelas && parcela.Numero == 1);
+
                 db.Payments.Add(new Payment
                 {
                     TreatmentPlanId = protocolo.Id,
@@ -203,7 +225,9 @@ public static class TreatmentPlanEndpoints
                     DueDate = parcela.Vencimento,
                     InstallmentNumber = parcela.Numero,
                     InstallmentCount = parcela.Total,
-                    Status = PaymentStatus.Pendente,
+                    Status = jaEfetivada ? PaymentStatus.Pago : PaymentStatus.Pendente,
+                    Method = jaEfetivada ? meio : null,
+                    PaidAt = jaEfetivada ? agora : null,
                     Notes = request.Observacoes?.Trim(),
                 });
             }
@@ -246,6 +270,8 @@ public record CreateTreatmentPlanRequest(
 public record ApprovePlanRequest(
     Guid[]? AcceptedItemIds,
     string Forma,
+    /// <summary>Pix, Dinheiro, Credito, Debito, Transferencia. Decide o que já entra efetivado.</summary>
+    string Meio,
     DateOnly PrimeiroVencimento,
     int? Parcelas,
     decimal? Sinal,

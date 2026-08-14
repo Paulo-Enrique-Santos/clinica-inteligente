@@ -58,7 +58,9 @@ public static class PaymentEndpoints
                     p.Status.ToString(),
                     p.Status == PaymentStatus.Pendente && p.DueDate < hoje,
                     p.Method == null ? null : p.Method.ToString(),
-                    p.PaidAt))
+                    p.PaidAt,
+                    p.InstallmentNumber,
+                    p.InstallmentCount))
                 .ToListAsync(ct);
 
             return Results.Ok(cobrancas);
@@ -140,6 +142,88 @@ public static class PaymentEndpoints
         })
         .WithName("DarBaixaEmCobranca");
 
+        group.MapGet("/resumo", async (ClinicaDbContext db, CancellationToken ct) =>
+        {
+            var hoje = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(-3));
+            var inicioDaSerie = new DateOnly(hoje.Year, hoje.Month, 1).AddMonths(-5);
+
+            var cobrancas = await db.Payments
+                .Where(p => p.Status != PaymentStatus.Cancelado)
+                .Select(p => new { p.Amount, p.DueDate, p.Status, p.PaidAt })
+                .ToListAsync(ct);
+
+            var recebido = cobrancas.Where(c => c.Status == PaymentStatus.Pago).Sum(c => c.Amount);
+            var pendente = cobrancas.Where(c => c.Status == PaymentStatus.Pendente).Sum(c => c.Amount);
+            var vencido = cobrancas
+                .Where(c => c.Status == PaymentStatus.Pendente && c.DueDate < hoje)
+                .Sum(c => c.Amount);
+            var estornado = cobrancas.Where(c => c.Status == PaymentStatus.Estornado).Sum(c => c.Amount);
+
+            // Série dos últimos seis meses. Recebido usa a data do pagamento; a receber
+            // usa o vencimento — são perguntas diferentes: uma é "quanto entrou", a
+            // outra "quanto deveria entrar".
+            var serie = Enumerable.Range(0, 6)
+                .Select(i => inicioDaSerie.AddMonths(i))
+                .Select(mes =>
+                {
+                    var fim = mes.AddMonths(1);
+
+                    return new
+                    {
+                        mes = mes.ToString("yyyy-MM"),
+                        recebido = cobrancas
+                            .Where(c => c.Status == PaymentStatus.Pago
+                                        && c.PaidAt != null
+                                        && DateOnly.FromDateTime(c.PaidAt.Value.UtcDateTime) >= mes
+                                        && DateOnly.FromDateTime(c.PaidAt.Value.UtcDateTime) < fim)
+                            .Sum(c => c.Amount),
+                        aReceber = cobrancas
+                            .Where(c => c.Status == PaymentStatus.Pendente
+                                        && c.DueDate >= mes && c.DueDate < fim)
+                            .Sum(c => c.Amount),
+                    };
+                })
+                .ToList();
+
+            return Results.Ok(new { recebido, pendente, vencido, estornado, serie });
+        })
+        .WithName("ResumoFinanceiro");
+
+        group.MapPost("/{id:guid}/estornar", async (
+            Guid id,
+            EstornoRequest request,
+            ClinicaDbContext db,
+            CancellationToken ct) =>
+        {
+            var cobranca = await db.Payments.FirstOrDefaultAsync(p => p.Id == id, ct);
+
+            if (cobranca is null)
+            {
+                return Results.NotFound();
+            }
+
+            if (cobranca.Status != PaymentStatus.Pago)
+            {
+                return Results.Problem(
+                    title: "Cobranca nao esta paga",
+                    detail: "So se estorna o que entrou.",
+                    statusCode: StatusCodes.Status409Conflict);
+            }
+
+            // A data do pagamento permanece: saber QUANDO entrou continua importando
+            // depois do estorno, tanto para conciliar com a maquininha quanto para
+            // explicar à paciente.
+            cobranca.Status = PaymentStatus.Estornado;
+            cobranca.Notes = string.IsNullOrWhiteSpace(request.Motivo)
+                ? cobranca.Notes
+                : $"{cobranca.Notes} | Estorno: {request.Motivo.Trim()}".TrimStart('|', ' ');
+
+            await db.SaveChangesAsync(ct);
+
+            return Results.NoContent();
+        })
+        .WithName("EstornarCobranca");
+
         group.MapPost("/{id:guid}/cancelar", async (
             Guid id,
             ClinicaDbContext db,
@@ -178,6 +262,8 @@ public record CreatePaymentRequest(
 
 public record SettlePaymentRequest(string Method, DateTimeOffset? PaidAt);
 
+public record EstornoRequest(string? Motivo);
+
 public record PaymentResponse(
     Guid Id,
     Guid? AppointmentId,
@@ -192,4 +278,6 @@ public record PaymentResponse(
     /// <summary>Calculado na consulta, nunca gravado — status vencido no banco envelhece.</summary>
     bool Overdue,
     string? Method,
-    DateTimeOffset? PaidAt);
+    DateTimeOffset? PaidAt,
+    int? InstallmentNumber,
+    int? InstallmentCount);

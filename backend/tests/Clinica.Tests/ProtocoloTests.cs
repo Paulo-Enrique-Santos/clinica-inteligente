@@ -60,6 +60,7 @@ public class ProtocoloTests(PostgresFixture postgres) : IAsyncLifetime
         {
             acceptedItemIds = Array.Empty<Guid>(),
             forma = "AVista",
+            meio = "Pix",
             primeiroVencimento = new DateOnly(2027, 6, 1),
         });
 
@@ -80,6 +81,7 @@ public class ProtocoloTests(PostgresFixture postgres) : IAsyncLifetime
         {
             acceptedItemIds = new[] { limpeza.Id },
             forma = "AVista",
+            meio = "Pix",
             primeiroVencimento = new DateOnly(2027, 6, 1),
         });
         resposta.EnsureSuccessStatusCode();
@@ -91,7 +93,9 @@ public class ProtocoloTests(PostgresFixture postgres) : IAsyncLifetime
         // doutora não some porque a paciente adiou.
         Assert.Contains(depois, i => i.Status == "Recusado");
 
-        var cobrancas = await _recepcao.GetFromJsonAsync<List<PaymentResponse>>("/payments?status=Pendente");
+        // Sem filtro de status: desde a Fase L, parte das cobrancas ja nasce efetivada
+        // dependendo da forma e do meio de pagamento.
+        var cobrancas = await _recepcao.GetFromJsonAsync<List<PaymentResponse>>("/payments");
         // Filtra pelo protocolo: os testes compartilham o banco, e somar tudo que é
         // "Protocolo" pegaria as cobranças geradas pelos outros.
         var geradas = cobrancas!.Where(p => p.TreatmentPlanId == protocolo).ToList();
@@ -111,13 +115,16 @@ public class ProtocoloTests(PostgresFixture postgres) : IAsyncLifetime
         {
             acceptedItemIds = itens.Select(i => i.Id).ToArray(),
             forma = "SinalMaisParcelas",
+            meio = "Pix",
             primeiroVencimento = new DateOnly(2027, 7, 5),
             parcelas = 2,
             sinal = 500m,
         });
         resposta.EnsureSuccessStatusCode();
 
-        var cobrancas = await _recepcao.GetFromJsonAsync<List<PaymentResponse>>("/payments?status=Pendente");
+        // Sem filtro de status: desde a Fase L, parte das cobrancas ja nasce efetivada
+        // dependendo da forma e do meio de pagamento.
+        var cobrancas = await _recepcao.GetFromJsonAsync<List<PaymentResponse>>("/payments");
         // Filtra pelo protocolo: os testes compartilham o banco, e somar tudo que é
         // "Protocolo" pegaria as cobranças geradas pelos outros.
         var geradas = cobrancas!.Where(p => p.TreatmentPlanId == protocolo).ToList();
@@ -138,6 +145,7 @@ public class ProtocoloTests(PostgresFixture postgres) : IAsyncLifetime
         {
             acceptedItemIds = itens.Select(i => i.Id).ToArray(),
             forma = "AVista",
+            meio = "Pix",
             primeiroVencimento = new DateOnly(2027, 8, 1),
         };
 
@@ -160,6 +168,7 @@ public class ProtocoloTests(PostgresFixture postgres) : IAsyncLifetime
         {
             acceptedItemIds = Array.Empty<Guid>(),
             forma = "AVista",
+            meio = "Pix",
             primeiroVencimento = new DateOnly(2027, 9, 1),
         });
         resposta.EnsureSuccessStatusCode();

@@ -54,6 +54,9 @@ export async function fecharOrcamento(
   const resultado = await apiSend(`/treatment-plans/${protocolo}/orcamento`, "POST", {
     acceptedItemIds: aceitos,
     forma: String(formulario.get("forma") ?? "AVista"),
+    // Decide o que já nasce efetivado: dinheiro e cartão entram pagos, PIX parcelado
+    // fica pendente.
+    meio: String(formulario.get("meio") ?? "Pix"),
     primeiroVencimento: String(formulario.get("vencimento") ?? ""),
     parcelas: Number(formulario.get("parcelas") ?? 1) || 1,
     sinal: Number(String(formulario.get("sinal") ?? "0").replace(",", ".")) || 0,

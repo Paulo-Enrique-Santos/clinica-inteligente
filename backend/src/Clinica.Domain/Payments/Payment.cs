@@ -8,6 +8,15 @@ public enum PaymentStatus
     Pendente,
     Pago,
     Cancelado,
+
+    /// <summary>
+    /// Foi pago e depois desfeito: cartão recusado, chargeback, devolução.
+    ///
+    /// Estado próprio em vez de voltar para Pendente, porque a clínica precisa
+    /// distinguir "nunca entrou" de "entrou e voltou" — são conversas diferentes com a
+    /// paciente e linhas diferentes no relatório.
+    /// </summary>
+    Estornado,
 }
 
 public enum PaymentMethod

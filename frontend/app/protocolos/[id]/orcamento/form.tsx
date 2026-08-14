@@ -98,6 +98,20 @@ export function FormularioDeOrcamento({
         <span className="font-display text-xl text-ink">{MOEDA.format(total)}</span>
       </div>
 
+      <Field
+        label="Meio de pagamento"
+        htmlFor="meio"
+        hint="Dinheiro e cartão já entram como recebidos. Só o PIX parcelado fica pendente de baixa."
+      >
+        <Select id="meio" name="meio" defaultValue="Pix">
+          <option value="Pix">PIX</option>
+          <option value="Dinheiro">Dinheiro</option>
+          <option value="Credito">Cartão de crédito</option>
+          <option value="Debito">Cartão de débito</option>
+          <option value="Transferencia">Transferência</option>
+        </Select>
+      </Field>
+
       <Field label="Forma de pagamento" htmlFor="forma">
         <Select
           id="forma"

@@ -95,7 +95,7 @@ export default async function AgendaPage(props: PageProps<"/agenda">) {
   const ate = `${ultimoDia}T00:00:00-03:00`;
   const filtro = !soPropriaAgenda && profFiltro ? `&profissionalId=${profFiltro}` : "";
 
-  const [agenda, profissionais, minhaFicha] = await Promise.all([
+  const [agenda, profissionais, minhaFicha, janela] = await Promise.all([
     apiFetch<Atendimento[]>(
       `/appointments?de=${encodeURIComponent(de)}&ate=${encodeURIComponent(ate)}${filtro}`,
     ),
@@ -105,6 +105,10 @@ export default async function AgendaPage(props: PageProps<"/agenda">) {
     soPropriaAgenda
       ? apiFetchOrNull<Profissional>("/professionals/me")
       : Promise.resolve(null),
+    apiFetch<{ inicio: string | null; fim: string | null }>(
+      `/schedule/window?de=${primeiroDia}&ate=${semana ? diasDaSemana[6] : dia}` +
+        (profFiltro ? `&profissionalId=${profFiltro}` : ""),
+    ),
   ]);
 
   const podeAgendar = session.roles.some((r) => r === "OWNER" || r === "SECRETARY");
@@ -234,6 +238,7 @@ export default async function AgendaPage(props: PageProps<"/agenda">) {
           atendimentos={agenda}
           diaDestacado={dia}
           podeAgendar={podeAgendar}
+          janela={janela}
         />
       ) : agenda.length === 0 ? (
         <EmptyState

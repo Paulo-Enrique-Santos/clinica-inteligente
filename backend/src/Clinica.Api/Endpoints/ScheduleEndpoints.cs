@@ -10,6 +10,56 @@ public static class ScheduleEndpoints
 {
     public static IEndpointRouteBuilder MapScheduleEndpoints(this IEndpointRouteBuilder app)
     {
+        // Janela de atendimento da clínica: a menor abertura e o maior fechamento entre
+        // as profissionais, no período pedido.
+        //
+        // Existe para a grade da agenda não desenhar horário em que ninguém atende.
+        // Mostrar 8h da manhã numa clínica que abre às 9h custa uma faixa de tela inútil
+        // em todo dia de uso.
+        app.MapGet("/schedule/window", async (
+            DateOnly de,
+            DateOnly ate,
+            Guid? profissionalId,
+            ClinicaDbContext db,
+            DisponibilidadeService disponibilidade,
+            CancellationToken ct) =>
+        {
+            var profissionais = await db.Professionals
+                .Where(p => p.Active && (profissionalId == null || p.Id == profissionalId))
+                .Select(p => p.Id)
+                .ToListAsync(ct);
+
+            TimeOnly? inicio = null;
+            TimeOnly? fim = null;
+
+            for (var dia = de; dia <= ate; dia = dia.AddDays(1))
+            {
+                foreach (var profissional in profissionais)
+                {
+                    var expediente = await disponibilidade.ExpedienteDeAsync(profissional, dia, ct);
+
+                    // Irrestrito quer dizer "ninguém definiu expediente"; usar os
+                    // extremos do dia esticaria a grade para 24 horas.
+                    if (!expediente.Atende || expediente.Irrestrito)
+                    {
+                        continue;
+                    }
+
+                    inicio = inicio is null || expediente.Inicio < inicio ? expediente.Inicio : inicio;
+                    fim = fim is null || expediente.Fim > fim ? expediente.Fim : fim;
+                }
+            }
+
+            return Results.Ok(new
+            {
+                inicio = inicio?.ToString("HH\\:mm"),
+                fim = fim?.ToString("HH\\:mm"),
+            });
+        })
+        .RequireAuthorization()
+        .WithTags("Expediente")
+        .WithName("ObterJanelaDeAtendimento");
+
         var group = app.MapGroup("/professionals/{profissionalId:guid}")
             .RequireAuthorization()
             .WithTags("Expediente");

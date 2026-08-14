@@ -3,24 +3,14 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { apiFetch, type Profissional } from "@/lib/api";
 import { data as formatarData } from "@/lib/formato";
-import { salvarExpediente, salvarExcecao, removerExcecao } from "@/lib/actions/expediente";
+import { salvarExcecao, removerExcecao } from "@/lib/actions/expediente";
+import { EditorDeExpediente } from "./editor";
 import { AppShell, PageHeader } from "@/components/app-shell";
 import { Card, CardHeader, CardBody, EmptyState } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Field, Input } from "@/components/ui/field";
-import { Formulario } from "@/components/ui/form";
 import { cn } from "@/lib/cn";
-
-const DIAS = [
-  { n: 1, nome: "Segunda" },
-  { n: 2, nome: "Terça" },
-  { n: 3, nome: "Quarta" },
-  { n: 4, nome: "Quinta" },
-  { n: 5, nome: "Sexta" },
-  { n: 6, nome: "Sábado" },
-  { n: 0, nome: "Domingo" },
-];
 
 type Expediente = {
   semana: {
@@ -69,7 +59,6 @@ export default async function ExpedientePage(props: PageProps<"/expediente">) {
   }
 
   const expediente = await apiFetch<Expediente>(`/professionals/${escolhida}/schedule`);
-  const porDia = new Map(expediente.semana.map((d) => [d.dayOfWeek, d]));
 
   return (
     <AppShell atual="/agenda" usuario={usuario} papeis={session.roles}>
@@ -100,68 +89,23 @@ export default async function ExpedientePage(props: PageProps<"/expediente">) {
       <Card className="mb-8">
         <CardHeader
           title="Semana padrão"
-          description="Desmarque o dia em que a profissional não atende."
+          description="Define os horários que o sistema oferece ao agendar."
         />
         <CardBody>
-          <Formulario acao={salvarExpediente} rotuloEnviar="Salvar expediente">
-            <input type="hidden" name="profissional" value={escolhida} />
-
-            <div className="space-y-2">
-              {DIAS.map(({ n, nome }) => {
-                const atual = porDia.get(n);
-
-                return (
-                  <div
-                    key={n}
-                    className="flex flex-wrap items-center gap-3 rounded-control border border-border px-4 py-3"
-                  >
-                    <label className="flex w-32 items-center gap-2 text-sm text-ink">
-                      <input
-                        type="checkbox"
-                        name={`ativo-${n}`}
-                        defaultChecked={Boolean(atual)}
-                        className="accent-primary"
-                      />
-                      {nome}
-                    </label>
-
-                    <div className="flex items-center gap-1.5 text-sm text-ink-muted">
-                      <input
-                        type="time"
-                        name={`inicio-${n}`}
-                        defaultValue={hhmm(atual?.startsAt ?? null) || "09:00"}
-                        className="rounded-control border border-border-strong px-2 py-1 text-sm text-ink"
-                      />
-                      às
-                      <input
-                        type="time"
-                        name={`fim-${n}`}
-                        defaultValue={hhmm(atual?.endsAt ?? null) || "18:00"}
-                        className="rounded-control border border-border-strong px-2 py-1 text-sm text-ink"
-                      />
-                    </div>
-
-                    <div className="flex items-center gap-1.5 text-sm text-ink-subtle">
-                      almoço
-                      <input
-                        type="time"
-                        name={`almocoInicio-${n}`}
-                        defaultValue={hhmm(atual?.breakStartsAt ?? null)}
-                        className="rounded-control border border-border-strong px-2 py-1 text-sm text-ink"
-                      />
-                      às
-                      <input
-                        type="time"
-                        name={`almocoFim-${n}`}
-                        defaultValue={hhmm(atual?.breakEndsAt ?? null)}
-                        className="rounded-control border border-border-strong px-2 py-1 text-sm text-ink"
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </Formulario>
+          <EditorDeExpediente
+            profissional={escolhida}
+            inicial={Object.fromEntries(
+              expediente.semana.map((d) => [
+                d.dayOfWeek,
+                {
+                  inicio: hhmm(d.startsAt),
+                  fim: hhmm(d.endsAt),
+                  almocoInicio: hhmm(d.breakStartsAt),
+                  almocoFim: hhmm(d.breakEndsAt),
+                },
+              ]),
+            )}
+          />
         </CardBody>
       </Card>
 

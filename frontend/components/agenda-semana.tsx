@@ -21,7 +21,14 @@ type Props = {
   atendimentos: Atendimento[];
   diaDestacado: string;
   podeAgendar: boolean;
+  /** Janela real de atendimento da clínica. Nula quando ninguém definiu expediente. */
+  janela: { inicio: string | null; fim: string | null };
 };
+
+function emMinutos(hhmm: string) {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+}
 
 /** Minutos desde a meia-noite, no fuso da clínica. */
 function minutosDoDia(iso: string) {
@@ -35,16 +42,29 @@ function diaDoAtendimento(iso: string) {
   return new Date(d.getTime() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
-export function AgendaSemana({ dias, atendimentos, diaDestacado, podeAgendar }: Props) {
+export function AgendaSemana({
+  dias,
+  atendimentos,
+  diaDestacado,
+  podeAgendar,
+  janela,
+}: Props) {
   const ativos = atendimentos.filter((a) => a.status !== "Cancelado");
 
-  // A grade se ajusta ao que existe, com folga de meia hora, em vez de mostrar as 24
-  // horas do dia — a clínica não abre de madrugada e rolagem vazia atrapalha.
+  // A grade começa e termina no expediente da clínica, não num palpite. Numa clínica
+  // que abre às 9h, desenhar a partir das 8h custa uma faixa morta em todo dia de uso.
+  //
+  // Sem expediente definido, cai para 8h–18h; e atendimento fora da janela (encaixe,
+  // ou marcado antes de o expediente existir) estica a grade para caber — some-lo da
+  // tela seria pior do que a faixa extra.
   const inicios = ativos.map((a) => minutosDoDia(a.startsAt));
   const fins = ativos.map((a) => minutosDoDia(a.endsAt));
 
-  const inicioGrade = Math.max(0, Math.min(8 * 60, ...(inicios.length ? inicios : [8 * 60])) - 30);
-  const fimGrade = Math.min(24 * 60, Math.max(18 * 60, ...(fins.length ? fins : [18 * 60])) + 30);
+  const baseInicio = janela.inicio ? emMinutos(janela.inicio) : 8 * 60;
+  const baseFim = janela.fim ? emMinutos(janela.fim) : 18 * 60;
+
+  const inicioGrade = Math.max(0, Math.min(baseInicio, ...(inicios.length ? inicios : [baseInicio])));
+  const fimGrade = Math.min(24 * 60, Math.max(baseFim, ...(fins.length ? fins : [baseFim])));
 
   const altura = (fimGrade - inicioGrade) * PX_POR_MINUTO;
 

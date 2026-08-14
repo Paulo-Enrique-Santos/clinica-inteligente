@@ -8,7 +8,7 @@ export default async function Home() {
   const session = await auth();
 
   if (session && !session.error) {
-    redirect("/pacientes");
+    redirect("/inicio");
   }
 
   return (

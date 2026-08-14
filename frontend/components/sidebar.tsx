@@ -20,6 +20,11 @@ type Grupo = { titulo: string; icone: string; itens: Item[] };
  * formas simples, e uma dependência de ícones custaria mais do que resolve.
  */
 const GRUPOS: Grupo[] = [
+  {
+    titulo: "Visão geral",
+    icone: "painel",
+    itens: [{ href: "/inicio", label: "Painel" }],
+  },
   { titulo: "Agenda", icone: "calendario", itens: [{ href: "/agenda", label: "Agenda" }] },
   {
     titulo: "Atendimento",
@@ -58,6 +63,15 @@ function Icone({ nome, className }: { nome: string; className?: string }) {
   };
 
   switch (nome) {
+    case "painel":
+      return (
+        <svg {...comum}>
+          <rect x="3" y="3" width="7.5" height="9" rx="1.5" />
+          <rect x="13.5" y="3" width="7.5" height="5.5" rx="1.5" />
+          <rect x="3" y="15" width="7.5" height="6" rx="1.5" />
+          <rect x="13.5" y="11.5" width="7.5" height="9.5" rx="1.5" />
+        </svg>
+      );
     case "calendario":
       return (
         <svg {...comum}>
@@ -97,7 +111,14 @@ function Icone({ nome, className }: { nome: string; className?: string }) {
   }
 }
 
-export function Sidebar({ papeis }: { papeis: string[] }) {
+const NOME_DO_PAPEL: Record<string, string> = {
+  OWNER: "Responsável pela clínica",
+  DOCTOR: "Profissional",
+  SECRETARY: "Recepção",
+  FINANCE: "Financeiro",
+};
+
+export function Sidebar({ papeis, usuario }: { papeis: string[]; usuario: string }) {
   const caminho = usePathname();
   const [abertoNoMobile, setAbertoNoMobile] = useState(false);
 
@@ -108,7 +129,7 @@ export function Sidebar({ papeis }: { papeis: string[] }) {
 
   const conteudo = (
     <nav className="flex h-full flex-col gap-6 overflow-y-auto px-3 py-5">
-      <Link href="/agenda" className="flex items-center gap-2.5 px-2">
+      <Link href="/inicio" className="flex items-center gap-2.5 px-2">
         <Image src="/cliniq-mark.png" alt="" width={140} height={157} priority className="h-7 w-auto" />
         <Image
           src="/cliniq-wordmark.png"
@@ -119,6 +140,20 @@ export function Sidebar({ papeis }: { papeis: string[] }) {
           className="h-4 w-auto"
         />
       </Link>
+
+      {/* Quem sou eu e o que posso fazer aqui — pergunta que a pessoa faz uma vez e
+          depois nunca mais, mas que sem resposta incomoda todo dia. */}
+      <div className="flex items-center gap-3 rounded-card border border-border bg-surface px-3 py-2.5">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-soft font-display text-sm text-primary">
+          {usuario.charAt(0).toUpperCase()}
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-sm text-ink">{usuario}</p>
+          <p className="truncate text-xs text-ink-subtle">
+            {papeis.map((p) => NOME_DO_PAPEL[p] ?? p).join(" · ") || "Sem papel"}
+          </p>
+        </div>
+      </div>
 
       <div className="space-y-5">
         {visiveis.map((grupo) => (

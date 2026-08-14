@@ -28,7 +28,7 @@ export function AppShell({
 }) {
   return (
     <div className="flex min-h-full flex-1 bg-surface">
-      <Sidebar papeis={papeis} />
+      <Sidebar papeis={papeis} usuario={primeiroNome(usuario)} />
 
       {/* lg:pl-64 abre espaço para a barra fixa; no mobile ela fica sobreposta. */}
       <div className="flex min-w-0 flex-1 flex-col lg:pl-64">

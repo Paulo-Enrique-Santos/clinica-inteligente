@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { auth, signIn, signOut, KEYCLOAK_ISSUER } from "@/auth";
 
 export async function entrar() {
-  await signIn("keycloak", { redirectTo: "/pacientes" });
+  await signIn("keycloak", { redirectTo: "/inicio" });
 }
 
 /**

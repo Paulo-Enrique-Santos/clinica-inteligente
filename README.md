@@ -4,7 +4,13 @@ Sistema de gestão para clínica de estética com uma camada de agentes de IA op
 canais de atendimento (WhatsApp): confirmação de agenda, acompanhamento pós-procedimento,
 cobrança, remarketing, captação de novos pacientes e relatórios de gestão.
 
-> **Status:** Fase 0 — fundação. O planejamento completo está em [PLANO.md](PLANO.md).
+> **Status:** completo em funcionalidades; a camada de IA ainda não começou.
+>
+> 📄 **[CONTEXTO.md](CONTEXTO.md) — leia primeiro.** Reúne arquitetura, decisões de
+> negócio, convenções, armadilhas conhecidas e o roadmap. É o documento que permite a
+> outra pessoa (ou agente) continuar o trabalho sem reler o histórico.
+>
+> O planejamento original está em [PLANO.md](PLANO.md), já defasado em várias fases.
 
 ## Ideia central
 

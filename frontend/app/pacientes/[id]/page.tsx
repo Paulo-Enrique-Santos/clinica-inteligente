@@ -7,13 +7,15 @@ import { formatarTelefone } from "@/lib/telefone";
 import { gerarLinkDeAnamnese } from "@/lib/actions/anamnese";
 import { PERGUNTAS } from "@/lib/anamnese";
 import { AppShell, PageHeader } from "@/components/app-shell";
-import { Card, CardHeader, CardBody } from "@/components/ui/card";
+import { Card, EmptyState } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
+import { cn } from "@/lib/cn";
 
 type Ficha = {
   patient: { id: string; fullName: string; phoneE164: string; birthDate: string | null };
+  totals: { appointments: number; plans: number; payments: number };
   appointments: {
     id: string;
     startsAt: string;
@@ -41,6 +43,7 @@ type Ficha = {
   }[];
   anamnesis: { submittedAt: string; imageConsent: boolean; answersJson: string } | null;
   showsFinance: boolean;
+  pageSize: number;
 };
 
 const TOM: Record<string, "neutral" | "primary" | "success" | "warning" | "danger"> = {
@@ -51,10 +54,32 @@ const TOM: Record<string, "neutral" | "primary" | "success" | "warning" | "dange
   Cancelado: "danger",
   Pendente: "warning",
   Pago: "success",
+  Estornado: "danger",
   Proposto: "primary",
   Aprovado: "success",
   Recusado: "danger",
 };
+
+function Celula({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <td className={cn("px-4 py-3 align-top", className)}>{children}</td>;
+}
+
+function Cabecalho({ colunas }: { colunas: string[] }) {
+  return (
+    <thead>
+      <tr className="border-b border-border">
+        {colunas.map((c) => (
+          <th
+            key={c}
+            className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-ink-subtle"
+          >
+            {c}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+}
 
 export default async function FichaDaPacientePage(props: PageProps<"/pacientes/[id]">) {
   const session = await auth();
@@ -65,25 +90,46 @@ export default async function FichaDaPacientePage(props: PageProps<"/pacientes/[
 
   const { id } = await props.params;
   const params = await props.searchParams;
+
+  const aba = typeof params.aba === "string" ? params.aba : "sessoes";
+  const pagina = Math.max(1, Number(params.pagina ?? 1) || 1);
   const linkGerado = typeof params.link === "string" ? params.link : null;
 
-  const ficha = await apiFetch<Ficha>(`/patients/${id}/ficha`);
-
-  const realizados = ficha.appointments.filter((a) => a.status === "Realizado");
-  const agendados = ficha.appointments.filter(
-    (a) => a.status === "Agendado" || a.status === "Confirmado",
+  // Uma aba por vez: uma paciente antiga pode ter centenas de sessões, e carregar tudo
+  // para mostrar as vinte primeiras é desperdício que cresce com o tempo de casa.
+  const ficha = await apiFetch<Ficha>(
+    `/patients/${id}/ficha?aba=${aba}&pagina=${pagina}`,
   );
+
+  const abas = [
+    { chave: "sessoes", rotulo: "Sessões", total: ficha.totals.appointments },
+    { chave: "protocolos", rotulo: "Protocolos", total: ficha.totals.plans },
+    ...(ficha.showsFinance
+      ? [{ chave: "pagamentos", rotulo: "Pagamentos", total: ficha.totals.payments }]
+      : []),
+    { chave: "anamnese", rotulo: "Anamnese", total: null as number | null },
+  ];
+
+  const totalDaAba =
+    aba === "sessoes"
+      ? ficha.totals.appointments
+      : aba === "protocolos"
+        ? ficha.totals.plans
+        : aba === "pagamentos"
+          ? ficha.totals.payments
+          : 0;
+
+  const ultimaPagina = Math.max(1, Math.ceil(totalDaAba / ficha.pageSize));
 
   const respostas: Record<string, string> = ficha.anamnesis
     ? JSON.parse(ficha.anamnesis.answersJson)
     : {};
 
+  const url = (novaAba: string, novaPagina = 1) =>
+    `/pacientes/${id}?aba=${novaAba}&pagina=${novaPagina}`;
+
   return (
-    <AppShell
-      atual="/pacientes"
-      usuario={session.user?.name ?? session.user?.email ?? "—"}
-      papeis={session.roles}
-    >
+    <AppShell usuario={session.user?.name ?? session.user?.email ?? "—"} papeis={session.roles}>
       <PageHeader
         titulo={ficha.patient.fullName}
         descricao={`${formatarTelefone(ficha.patient.phoneE164)}${
@@ -109,123 +155,168 @@ export default async function FichaDaPacientePage(props: PageProps<"/pacientes/[
         </Alert>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader
-            title="Tratamentos contratados"
-            description={`${ficha.plans.length} protocolo${ficha.plans.length === 1 ? "" : "s"}`}
-          />
-          <CardBody className="space-y-3">
-            {ficha.plans.length === 0 ? (
-              <p className="text-sm text-ink-subtle">Nenhum protocolo ainda.</p>
-            ) : (
-              ficha.plans.map((p) => (
-                <div key={p.id} className="rounded-control border border-border px-4 py-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm text-ink">{p.professionalName}</span>
-                    <Badge tone={TOM[p.status] ?? "neutral"}>{p.status}</Badge>
-                  </div>
-                  <ul className="mt-1.5 space-y-0.5">
-                    {p.items.map((i, n) => (
-                      <li key={n} className="text-xs text-ink-muted">
-                        {i.sessions}× {i.procedureName} — {reais(i.total)}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))
+      <div className="mb-5 flex flex-wrap gap-1 border-b border-border">
+        {abas.map((a) => (
+          <Link
+            key={a.chave}
+            href={url(a.chave)}
+            className={cn(
+              "-mb-px border-b-2 px-4 py-2.5 text-sm transition-colors",
+              a.chave === aba
+                ? "border-primary font-medium text-primary"
+                : "border-transparent text-ink-muted hover:text-ink",
             )}
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardHeader
-            title="Sessões"
-            description={`${realizados.length} realizada${realizados.length === 1 ? "" : "s"} · ${agendados.length} agendada${agendados.length === 1 ? "" : "s"}`}
-          />
-          <CardBody className="space-y-2">
-            {ficha.appointments.length === 0 ? (
-              <p className="text-sm text-ink-subtle">Nenhum atendimento ainda.</p>
-            ) : (
-              ficha.appointments.slice(0, 12).map((a) => (
-                <div key={a.id} className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm text-ink">{a.procedureName}</p>
-                    <p className="text-xs text-ink-subtle">
-                      {dataHora(a.startsAt)} · {a.professionalName}
-                    </p>
-                    {a.executionNotes && (
-                      <p className="mt-0.5 text-xs italic text-ink-muted">
-                        {a.executionNotes}
-                      </p>
-                    )}
-                  </div>
-                  <Badge tone={TOM[a.status] ?? "neutral"}>{a.status}</Badge>
-                </div>
-              ))
+          >
+            {a.rotulo}
+            {a.total !== null && a.total > 0 && (
+              <span className="ml-1.5 text-xs text-ink-subtle">{a.total}</span>
             )}
-          </CardBody>
-        </Card>
+          </Link>
+        ))}
+      </div>
 
-        {ficha.showsFinance && (
-          <Card>
-            <CardHeader title="Pagamentos" />
-            <CardBody className="space-y-2">
-              {ficha.payments.length === 0 ? (
-                <p className="text-sm text-ink-subtle">Nenhuma cobrança.</p>
-              ) : (
-                ficha.payments.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm text-ink">{reais(p.amount)}</p>
-                      <p className="text-xs text-ink-subtle">
-                        vence {fmtData(p.dueDate)}
-                        {p.installmentCount && p.installmentCount > 1
-                          ? ` · parcela ${p.installmentNumber}/${p.installmentCount}`
-                          : ""}
-                        {p.method ? ` · ${p.method}` : ""}
-                      </p>
-                    </div>
-                    <Badge tone={TOM[p.status] ?? "neutral"}>{p.status}</Badge>
-                  </div>
-                ))
-              )}
-            </CardBody>
-          </Card>
-        )}
+      <Card className="overflow-hidden">
+        {aba === "sessoes" &&
+          (ficha.appointments.length === 0 ? (
+            <EmptyState title="Nenhum atendimento" description="Ainda não há sessões registradas." />
+          ) : (
+            <table className="w-full text-sm">
+              <Cabecalho colunas={["Data", "Procedimento", "Profissional", "Valor", "Status"]} />
+              <tbody className="divide-y divide-border">
+                {ficha.appointments.map((a) => (
+                  <tr key={a.id} className="transition-colors hover:bg-surface">
+                    <Celula className="whitespace-nowrap text-ink-muted">
+                      {dataHora(a.startsAt)}
+                    </Celula>
+                    <Celula>
+                      <span className="text-ink">{a.procedureName}</span>
+                      {a.executionNotes && (
+                        <p className="mt-0.5 text-xs italic text-ink-subtle">
+                          {a.executionNotes}
+                        </p>
+                      )}
+                    </Celula>
+                    <Celula className="text-ink-muted">{a.professionalName}</Celula>
+                    <Celula className="whitespace-nowrap text-ink">{reais(a.price)}</Celula>
+                    <Celula>
+                      <Badge tone={TOM[a.status] ?? "neutral"}>{a.status}</Badge>
+                    </Celula>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ))}
 
-        <Card>
-          <CardHeader
-            title="Ficha de anamnese"
-            description={
-              ficha.anamnesis
-                ? `Preenchida em ${fmtData(ficha.anamnesis.submittedAt)}`
-                : "Ainda não preenchida"
-            }
-          />
-          <CardBody className="space-y-2">
+        {aba === "protocolos" &&
+          (ficha.plans.length === 0 ? (
+            <EmptyState title="Nenhum protocolo" description="Nada prescrito até agora." />
+          ) : (
+            <table className="w-full text-sm">
+              <Cabecalho colunas={["Data", "Profissional", "Procedimentos", "Total", "Status"]} />
+              <tbody className="divide-y divide-border">
+                {ficha.plans.map((p) => (
+                  <tr key={p.id} className="transition-colors hover:bg-surface">
+                    <Celula className="whitespace-nowrap text-ink-muted">
+                      {fmtData(p.createdAt)}
+                    </Celula>
+                    <Celula className="text-ink-muted">{p.professionalName}</Celula>
+                    <Celula>
+                      {p.items.map((i, n) => (
+                        <p key={n} className="text-ink">
+                          {i.sessions}× {i.procedureName}
+                        </p>
+                      ))}
+                    </Celula>
+                    <Celula className="whitespace-nowrap text-ink">
+                      {reais(p.items.reduce((s, i) => s + i.total, 0))}
+                    </Celula>
+                    <Celula>
+                      <Badge tone={TOM[p.status] ?? "neutral"}>{p.status}</Badge>
+                    </Celula>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ))}
+
+        {aba === "pagamentos" &&
+          (ficha.payments.length === 0 ? (
+            <EmptyState title="Nenhuma cobrança" description="Nada foi cobrado desta paciente." />
+          ) : (
+            <table className="w-full text-sm">
+              <Cabecalho colunas={["Vencimento", "Valor", "Parcela", "Meio", "Status"]} />
+              <tbody className="divide-y divide-border">
+                {ficha.payments.map((p) => (
+                  <tr key={p.id} className="transition-colors hover:bg-surface">
+                    <Celula className="whitespace-nowrap text-ink-muted">
+                      {fmtData(p.dueDate)}
+                    </Celula>
+                    <Celula className="whitespace-nowrap text-ink">{reais(p.amount)}</Celula>
+                    <Celula className="text-ink-subtle">
+                      {p.installmentCount && p.installmentCount > 1
+                        ? `${p.installmentNumber}/${p.installmentCount}`
+                        : "—"}
+                    </Celula>
+                    <Celula className="text-ink-muted">{p.method ?? "—"}</Celula>
+                    <Celula>
+                      <Badge tone={TOM[p.status] ?? "neutral"}>{p.status}</Badge>
+                    </Celula>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ))}
+
+        {aba === "anamnese" && (
+          <div className="p-5">
             {!ficha.anamnesis ? (
-              <p className="text-sm text-ink-subtle">
-                Gere o link acima e envie para a paciente preencher.
-              </p>
+              <EmptyState
+                title="Ficha não preenchida"
+                description="Gere o link acima e envie para a paciente preencher."
+              />
             ) : (
-              <>
+              <div className="space-y-4">
+                <p className="text-xs text-ink-subtle">
+                  Preenchida em {fmtData(ficha.anamnesis.submittedAt)}
+                </p>
+
                 {PERGUNTAS.filter((q) => respostas[q.chave]).map((q) => (
                   <div key={q.chave}>
                     <p className="text-xs text-ink-subtle">{q.texto}</p>
                     <p className="text-sm text-ink">{respostas[q.chave]}</p>
                   </div>
                 ))}
+
                 <Badge tone={ficha.anamnesis.imageConsent ? "success" : "neutral"}>
                   {ficha.anamnesis.imageConsent
                     ? "Autoriza uso de imagem"
                     : "Não autoriza uso de imagem"}
                 </Badge>
-              </>
+              </div>
             )}
-          </CardBody>
-        </Card>
-      </div>
+          </div>
+        )}
+      </Card>
+
+      {ultimaPagina > 1 && (
+        <div className="mt-4 flex items-center justify-between">
+          <p className="text-xs text-ink-subtle">
+            Página {pagina} de {ultimaPagina} · {totalDaAba} no total
+          </p>
+          <div className="flex gap-2">
+            <Link href={url(aba, Math.max(1, pagina - 1))}>
+              <Button variant="secondary" size="sm" disabled={pagina === 1}>
+                ← Anterior
+              </Button>
+            </Link>
+            <Link href={url(aba, Math.min(ultimaPagina, pagina + 1))}>
+              <Button variant="secondary" size="sm" disabled={pagina === ultimaPagina}>
+                Próxima →
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="mt-6">
         <Link href="/pacientes" className="text-sm text-primary hover:underline">

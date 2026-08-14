@@ -41,6 +41,16 @@ export async function criarProtocolo(
   redirect("/protocolos");
 }
 
+export async function cancelarProtocolo(formulario: FormData) {
+  const id = String(formulario.get("protocolo") ?? "");
+
+  await apiSend(`/treatment-plans/${id}/cancelar`, "POST", {
+    motivo: String(formulario.get("motivo") ?? "").trim() || null,
+  });
+
+  redirect("/protocolos");
+}
+
 export async function fecharOrcamento(
   _anterior: EstadoFormulario,
   formulario: FormData,

@@ -55,7 +55,10 @@ public class AnamneseTests(PostgresFixture postgres) : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.NoContent, envio.StatusCode);
 
-        var ficha = await _recepcao.GetFromJsonAsync<FichaDaPaciente>($"/patients/{paciente}/ficha");
+        // A ficha carrega uma aba por vez desde a paginacao; sem pedir a aba, a
+        // anamnese nao vem.
+        var ficha = await _recepcao.GetFromJsonAsync<FichaDaPaciente>(
+            $"/patients/{paciente}/ficha?aba=anamnese");
         Assert.NotNull(ficha!.Anamnesis);
         Assert.True(ficha.Anamnesis!.ImageConsent);
     }
@@ -99,7 +102,10 @@ public class AnamneseTests(PostgresFixture postgres) : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.BadRequest, resposta.StatusCode);
 
-        var ficha = await _recepcao.GetFromJsonAsync<FichaDaPaciente>($"/patients/{paciente}/ficha");
+        // A ficha carrega uma aba por vez desde a paginacao; sem pedir a aba, a
+        // anamnese nao vem.
+        var ficha = await _recepcao.GetFromJsonAsync<FichaDaPaciente>(
+            $"/patients/{paciente}/ficha?aba=anamnese");
         Assert.Null(ficha!.Anamnesis);
     }
 
@@ -109,8 +115,10 @@ public class AnamneseTests(PostgresFixture postgres) : IAsyncLifetime
         var paciente = await CriarPaciente("Clara Dias");
 
         var doutora = _factory.CreateClientFor(BellaFace, "DOCTOR");
-        var comoDoutora = await doutora.GetFromJsonAsync<FichaDaPaciente>($"/patients/{paciente}/ficha");
-        var comoDona = await _recepcao.GetFromJsonAsync<FichaDaPaciente>($"/patients/{paciente}/ficha");
+        var comoDoutora = await doutora.GetFromJsonAsync<FichaDaPaciente>(
+            $"/patients/{paciente}/ficha");
+        var comoDona = await _recepcao.GetFromJsonAsync<FichaDaPaciente>(
+            $"/patients/{paciente}/ficha");
 
         // A doutora precisa do histórico clínico, não de quanto a paciente deve.
         Assert.False(comoDoutora!.ShowsFinance);

@@ -249,9 +249,56 @@ public static class TreatmentPlanEndpoints
         .RequireAuthorization(p => p.RequireRole("OWNER", "SECRETARY", "FINANCE"))
         .WithName("FecharOrcamento");
 
+        group.MapPost("/{id:guid}/cancelar", async (
+            Guid id,
+            CancelPlanRequest request,
+            ClinicaDbContext db,
+            CancellationToken ct) =>
+        {
+            var protocolo = await db.TreatmentPlans.FirstOrDefaultAsync(p => p.Id == id, ct);
+
+            if (protocolo is null)
+            {
+                return Results.NotFound();
+            }
+
+            if (protocolo.Status == TreatmentPlanStatus.Cancelado)
+            {
+                return Results.NoContent();
+            }
+
+            protocolo.Status = TreatmentPlanStatus.Cancelado;
+            protocolo.Notes = string.IsNullOrWhiteSpace(request.Motivo)
+                ? protocolo.Notes
+                : $"{protocolo.Notes} | Cancelado: {request.Motivo.Trim()}".TrimStart('|', ' ');
+
+            // As cobranças pendentes caem junto: manter cobrança viva de tratamento
+            // cancelado é a receita para a clínica cobrar alguém por algo que não vai
+            // acontecer.
+            //
+            // O que já foi pago NÃO é tocado. Devolver dinheiro é decisão do financeiro,
+            // com estorno registrado — não efeito colateral de cancelar um protocolo.
+            var pendentes = await db.Payments
+                .Where(p => p.TreatmentPlanId == id && p.Status == PaymentStatus.Pendente)
+                .ToListAsync(ct);
+
+            foreach (var cobranca in pendentes)
+            {
+                cobranca.Status = PaymentStatus.Cancelado;
+            }
+
+            await db.SaveChangesAsync(ct);
+
+            return Results.Ok(new { cobrancasCanceladas = pendentes.Count });
+        })
+        .RequireAuthorization(p => p.RequireRole("OWNER", "SECRETARY", "FINANCE"))
+        .WithName("CancelarProtocolo");
+
         return app;
     }
 }
+
+public record CancelPlanRequest(string? Motivo);
 
 public record CreatePlanItemRequest(
     Guid ProcedureId,

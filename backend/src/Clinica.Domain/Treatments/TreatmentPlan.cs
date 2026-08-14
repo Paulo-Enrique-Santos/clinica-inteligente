@@ -17,6 +17,15 @@ public enum TreatmentPlanStatus
     /// <summary>A paciente não quis nada do que foi proposto.</summary>
     Recusado,
 
+    /// <summary>
+    /// Foi aprovado e depois interrompido: a paciente desistiu no meio, mudou de
+    /// clínica, teve intercorrência.
+    ///
+    /// Distinto de recusado, que é "nunca começou". A diferença importa no relatório: um
+    /// mede conversão de proposta, o outro mede abandono de tratamento.
+    /// </summary>
+    Cancelado,
+
     Concluido,
 }
 

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { apiFetch, type Protocolo } from "@/lib/api";
+import { cancelarProtocolo } from "@/lib/actions/protocolos";
+import { cn } from "@/lib/cn";
 import { reais } from "@/lib/formato";
 import { AppShell, PageHeader } from "@/components/app-shell";
 import { Card, EmptyState } from "@/components/ui/card";
@@ -15,21 +17,32 @@ const TOM: Record<string, "neutral" | "primary" | "success" | "danger"> = {
   Concluido: "neutral",
 };
 
-export default async function ProtocolosPage() {
+const ABAS = [
+  { chave: "pendentes", rotulo: "Aguardando orçamento", status: "Proposto" },
+  { chave: "ativos", rotulo: "Em andamento", status: "Aprovado" },
+  { chave: "recusados", rotulo: "Recusados", status: "Recusado" },
+  { chave: "cancelados", rotulo: "Cancelados", status: "Cancelado" },
+] as const;
+
+export default async function ProtocolosPage(props: PageProps<"/protocolos">) {
   const session = await auth();
 
   if (!session || session.error) {
     redirect("/");
   }
 
-  const protocolos = await apiFetch<Protocolo[]>("/treatment-plans");
+  const params = await props.searchParams;
+  const escolhida = typeof params.aba === "string" ? params.aba : "pendentes";
+  const abaAtual = ABAS.find((a) => a.chave === escolhida) ?? ABAS[0];
+
+  const protocolos = await apiFetch<Protocolo[]>(
+    `/treatment-plans?status=${abaAtual.status}`,
+  );
 
   const podePrescrever = session.roles.some((r) => r === "OWNER" || r === "DOCTOR");
   const podeOrcar = session.roles.some(
     (r) => r === "OWNER" || r === "SECRETARY" || r === "FINANCE",
   );
-
-  const aguardando = protocolos.filter((p) => p.status === "Proposto").length;
 
   return (
     <AppShell
@@ -39,11 +52,7 @@ export default async function ProtocolosPage() {
     >
       <PageHeader
         titulo="Protocolos"
-        descricao={
-          aguardando > 0
-            ? `${aguardando} aguardando orçamento`
-            : "Prescrições e tratamentos das pacientes"
-        }
+        descricao={`${protocolos.length} ${protocolos.length === 1 ? "protocolo" : "protocolos"} · ${abaAtual.rotulo.toLowerCase()}`}
         acao={
           podePrescrever ? (
             <Link href="/protocolos/novo">
@@ -52,6 +61,23 @@ export default async function ProtocolosPage() {
           ) : undefined
         }
       />
+
+      <div className="mb-5 flex flex-wrap gap-1 border-b border-border">
+        {ABAS.map((a) => (
+          <Link
+            key={a.chave}
+            href={`/protocolos?aba=${a.chave}`}
+            className={cn(
+              "-mb-px border-b-2 px-4 py-2.5 text-sm transition-colors",
+              a.chave === abaAtual.chave
+                ? "border-primary font-medium text-primary"
+                : "border-transparent text-ink-muted hover:text-ink",
+            )}
+          >
+            {a.rotulo}
+          </Link>
+        ))}
+      </div>
 
       {protocolos.length === 0 ? (
         <EmptyState
@@ -111,6 +137,17 @@ export default async function ProtocolosPage() {
                       <Link href={`/protocolos/${p.id}/orcamento`}>
                         <Button size="sm">Fechar orçamento</Button>
                       </Link>
+                    )}
+
+                    {/* Cancelar derruba as cobranças pendentes junto; o que já foi
+                        pago fica, porque devolver dinheiro é decisão do financeiro. */}
+                    {(p.status === "Proposto" || p.status === "Aprovado") && podeOrcar && (
+                      <form action={cancelarProtocolo}>
+                        <input type="hidden" name="protocolo" value={p.id} />
+                        <Button size="sm" variant="ghost" type="submit">
+                          Cancelar
+                        </Button>
+                      </form>
                     )}
                   </div>
                 </div>

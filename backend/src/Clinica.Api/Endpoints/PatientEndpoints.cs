@@ -57,10 +57,14 @@ public static class PatientEndpoints
 
         group.MapGet("/{id:guid}/ficha", async (
             Guid id,
+            string? aba,
+            int? pagina,
             ClinicaDbContext db,
             IUserContext usuario,
             CancellationToken ct) =>
         {
+            const int PorPagina = 20;
+
             var paciente = await db.Patients.FirstOrDefaultAsync(p => p.Id == id, ct);
 
             if (paciente is null)
@@ -68,43 +72,63 @@ public static class PatientEndpoints
                 return Results.NotFound();
             }
 
-            var atendimentos = await db.Appointments
-                .Where(a => a.PatientId == id)
-                .OrderByDescending(a => a.StartsAt)
-                .Select(a => new FichaAtendimento(
-                    a.Id,
-                    a.StartsAt,
-                    a.Procedure!.Name,
-                    a.Professional!.DisplayName,
-                    a.Status.ToString(),
-                    a.Price,
-                    a.ExecutionNotes))
-                .ToListAsync(ct);
-
-            var protocolos = await db.TreatmentPlans
-                .Where(p => p.PatientId == id)
-                .OrderByDescending(p => p.CreatedAt)
-                .Select(p => new FichaProtocolo(
-                    p.Id,
-                    p.Status.ToString(),
-                    p.CreatedAt,
-                    p.Professional!.DisplayName,
-                    p.Items
-                        .Where(i => i.Status != Clinica.Domain.Treatments.PlanItemStatus.Recusado)
-                        .Select(i => new FichaItem(i.Procedure!.Name, i.Sessions, i.UnitPrice * i.Sessions))
-                        .ToList()))
-                .ToListAsync(ct);
-
             // Financeiro só para quem cuida do dinheiro: a doutora precisa do histórico
             // clínico, não de quanto a paciente deve.
             var podeVerFinanceiro = usuario.HasRole("OWNER") || usuario.HasRole("FINANCE");
 
-            var cobrancas = podeVerFinanceiro
-                ? await db.Payments
-                    .Where(p => (p.Appointment != null && p.Appointment.PatientId == id)
-                                || db.TreatmentPlans.Any(t => t.Id == p.TreatmentPlanId
-                                                              && t.PatientId == id))
-                    .OrderBy(p => p.DueDate)
+            var cobrancasDaPaciente = db.Payments
+                .Where(p => (p.Appointment != null && p.Appointment.PatientId == id)
+                            || db.TreatmentPlans.Any(t => t.Id == p.TreatmentPlanId
+                                                          && t.PatientId == id));
+
+            // Os totais vêm sempre: são eles que rotulam as abas, e uma paciente com
+            // 500 sessões não pode obrigar a carregar as 500 para saber que são 500.
+            var totais = new FichaTotais(
+                await db.Appointments.CountAsync(a => a.PatientId == id, ct),
+                await db.TreatmentPlans.CountAsync(p => p.PatientId == id, ct),
+                podeVerFinanceiro ? await cobrancasDaPaciente.CountAsync(ct) : 0);
+
+            var pular = Math.Max(0, (pagina ?? 1) - 1) * PorPagina;
+
+            // Só a aba pedida é carregada. Antes a ficha trazia tudo de uma vez, o que
+            // funcionava com dez atendimentos e ficaria impraticável com quinhentos.
+            var atendimentos = aba is null or "sessoes"
+                ? await db.Appointments
+                    .Where(a => a.PatientId == id)
+                    .OrderByDescending(a => a.StartsAt)
+                    .Skip(pular).Take(PorPagina)
+                    .Select(a => new FichaAtendimento(
+                        a.Id,
+                        a.StartsAt,
+                        a.Procedure!.Name,
+                        a.Professional!.DisplayName,
+                        a.Status.ToString(),
+                        a.Price,
+                        a.ExecutionNotes))
+                    .ToListAsync(ct)
+                : [];
+
+            var protocolos = aba == "protocolos"
+                ? await db.TreatmentPlans
+                    .Where(p => p.PatientId == id)
+                    .OrderByDescending(p => p.CreatedAt)
+                    .Skip(pular).Take(PorPagina)
+                    .Select(p => new FichaProtocolo(
+                        p.Id,
+                        p.Status.ToString(),
+                        p.CreatedAt,
+                        p.Professional!.DisplayName,
+                        p.Items
+                            .Where(i => i.Status != Clinica.Domain.Treatments.PlanItemStatus.Recusado)
+                            .Select(i => new FichaItem(i.Procedure!.Name, i.Sessions, i.UnitPrice * i.Sessions))
+                            .ToList()))
+                    .ToListAsync(ct)
+                : [];
+
+            var cobrancas = aba == "pagamentos" && podeVerFinanceiro
+                ? await cobrancasDaPaciente
+                    .OrderByDescending(p => p.DueDate)
+                    .Skip(pular).Take(PorPagina)
                     .Select(p => new FichaCobranca(
                         p.Id,
                         p.Amount,
@@ -116,19 +140,23 @@ public static class PatientEndpoints
                     .ToListAsync(ct)
                 : [];
 
-            var anamnese = await db.AnamnesisResponses
-                .Where(a => a.PatientId == id)
-                .OrderByDescending(a => a.SubmittedAt)
-                .Select(a => new FichaAnamnese(a.SubmittedAt, a.ImageConsent, a.AnswersJson))
-                .FirstOrDefaultAsync(ct);
+            var anamnese = aba == "anamnese"
+                ? await db.AnamnesisResponses
+                    .Where(a => a.PatientId == id)
+                    .OrderByDescending(a => a.SubmittedAt)
+                    .Select(a => new FichaAnamnese(a.SubmittedAt, a.ImageConsent, a.AnswersJson))
+                    .FirstOrDefaultAsync(ct)
+                : null;
 
             return Results.Ok(new FichaDaPaciente(
                 PatientResponse.From(paciente),
+                totais,
                 atendimentos,
                 protocolos,
                 cobrancas,
                 anamnese,
-                podeVerFinanceiro));
+                podeVerFinanceiro,
+                PorPagina));
         })
         .WithName("ObterFichaDaPaciente");
 
@@ -222,13 +250,17 @@ public record FichaCobranca(
 
 public record FichaAnamnese(DateTimeOffset SubmittedAt, bool ImageConsent, string AnswersJson);
 
+public record FichaTotais(int Appointments, int Plans, int Payments);
+
 public record FichaDaPaciente(
     PatientResponse Patient,
+    FichaTotais Totals,
     List<FichaAtendimento> Appointments,
     List<FichaProtocolo> Plans,
     List<FichaCobranca> Payments,
     FichaAnamnese? Anamnesis,
-    bool ShowsFinance);
+    bool ShowsFinance,
+    int PageSize);
 
 public record PatientResponse(
     Guid Id,

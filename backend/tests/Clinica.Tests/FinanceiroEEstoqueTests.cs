@@ -122,6 +122,9 @@ public class FinanceiroEEstoqueTests(PostgresFixture postgres) : IAsyncLifetime
         {
             name = $"{nome} {Guid.NewGuid():N}"[..40],
             unit = unidade,
+            purchaseUnit = unidade,
+            contentPerUnit = 1m,
+            controlMode = "Informado",
             minimumQuantity = minimo,
         });
         resposta.EnsureSuccessStatusCode();

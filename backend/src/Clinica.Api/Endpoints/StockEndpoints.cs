@@ -14,43 +14,64 @@ public static class StockEndpoints
 
         group.MapGet("/", async (
             string? q,
+            string? modo,
             bool? incluirInativos,
             ClinicaDbContext db,
             CancellationToken ct) =>
         {
-            var itens = db.StockItems.AsQueryable();
+            var query = db.StockItems.AsQueryable();
 
             if (incluirInativos != true)
             {
-                itens = itens.Where(i => i.Active);
+                query = query.Where(i => i.Active);
             }
 
             if (!string.IsNullOrWhiteSpace(q))
             {
-                itens = itens.Where(i => EF.Functions.ILike(i.Name, $"%{q.Trim()}%"));
+                query = query.Where(i => EF.Functions.ILike(i.Name, $"%{q.Trim()}%"));
             }
 
-            // O saldo é somado das movimentações, não lido de uma coluna. Ver o comentário
-            // em StockItem: coluna de saldo é rápida de ler e mente no dia em que alguém
-            // gravar movimentação por um caminho que esqueceu de atualizá-la.
-            var resultado = await itens
-                .OrderBy(i => i.Name)
-                .Select(i => new StockItemResponse(
+            // O fechamento do atendimento só oferece o que a profissional consegue medir.
+            if (!string.IsNullOrWhiteSpace(modo)
+                && Enum.TryParse<StockControlMode>(modo, true, out var filtro))
+            {
+                query = query.Where(i => i.ControlMode == filtro);
+            }
+
+            var itens = await query.OrderBy(i => i.Name).ToListAsync(ct);
+
+            var saldos = await db.StockMovements
+                .Where(m => itens.Select(i => i.Id).Contains(m.StockItemId))
+                .GroupBy(m => m.StockItemId)
+                .Select(g => new
+                {
+                    Id = g.Key,
+                    Saldo = g.Sum(m => m.Type == StockMovementType.Entrada
+                        ? m.Quantity
+                        : m.Type == StockMovementType.Saida
+                            ? -m.Quantity
+                            : m.Quantity),
+                })
+                .ToDictionaryAsync(x => x.Id, x => x.Saldo, ct);
+
+            return Results.Ok(itens.Select(i =>
+            {
+                var saldo = saldos.GetValueOrDefault(i.Id);
+                var (fechadas, aberto) = i.Repartir(saldo);
+
+                return new StockItemResponse(
                     i.Id,
                     i.Name,
                     i.Unit,
-                    db.StockMovements
-                        .Where(m => m.StockItemId == i.Id)
-                        .Sum(m => m.Type == StockMovementType.Entrada
-                            ? m.Quantity
-                            : m.Type == StockMovementType.Saida
-                                ? -m.Quantity
-                                : m.Quantity),
+                    i.PurchaseUnit,
+                    i.ContentPerUnit,
+                    i.ControlMode.ToString(),
+                    saldo,
+                    fechadas,
+                    aberto,
                     i.MinimumQuantity,
-                    i.Active))
-                .ToListAsync(ct);
-
-            return Results.Ok(resultado);
+                    i.Active);
+            }).ToList());
         })
         .WithName("ListarEstoque");
 
@@ -65,6 +86,9 @@ public static class StockEndpoints
             {
                 Name = request.Name.Trim(),
                 Unit = request.Unit.Trim(),
+                PurchaseUnit = request.PurchaseUnit.Trim(),
+                ContentPerUnit = request.ContentPerUnit,
+                ControlMode = Enum.Parse<StockControlMode>(request.ControlMode, true),
                 MinimumQuantity = request.MinimumQuantity,
                 Active = request.Active ?? true,
             };
@@ -83,12 +107,7 @@ public static class StockEndpoints
                 .Where(m => m.StockItemId == id)
                 .OrderByDescending(m => m.CreatedAt)
                 .Select(m => new StockMovementResponse(
-                    m.Id,
-                    m.Type.ToString(),
-                    m.Quantity,
-                    m.AppointmentId,
-                    m.Reason,
-                    m.CreatedAt))
+                    m.Id, m.Type.ToString(), m.Quantity, m.AppointmentId, m.Reason, m.CreatedAt))
                 .ToListAsync(ct);
 
             return Results.Ok(movimentacoes);
@@ -110,7 +129,20 @@ public static class StockEndpoints
                 });
             }
 
-            if (tipo != StockMovementType.Ajuste && request.Quantity <= 0)
+            var item = await db.StockItems.FirstOrDefaultAsync(i => i.Id == id, ct);
+            if (item is null)
+            {
+                return Results.NotFound();
+            }
+
+            // Entrada é digitada como se compra — "2 frascos" — e convertida aqui.
+            // Deixar a conta para a tela abriria espaço para cada lugar multiplicar de
+            // um jeito, e para o saldo divergir por caminho de entrada.
+            var quantidade = request.InPurchaseUnits
+                ? request.Quantity * item.ContentPerUnit
+                : request.Quantity;
+
+            if (tipo != StockMovementType.Ajuste && quantidade <= 0)
             {
                 return Results.ValidationProblem(new Dictionary<string, string[]>
                 {
@@ -118,7 +150,7 @@ public static class StockEndpoints
                 });
             }
 
-            if (tipo == StockMovementType.Ajuste && request.Quantity == 0)
+            if (tipo == StockMovementType.Ajuste && quantidade == 0)
             {
                 return Results.ValidationProblem(new Dictionary<string, string[]>
                 {
@@ -128,39 +160,65 @@ public static class StockEndpoints
 
             if (tipo == StockMovementType.Ajuste && string.IsNullOrWhiteSpace(request.Reason))
             {
-                // Ajuste sem motivo vira buraco inexplicável na auditoria de estoque.
                 return Results.ValidationProblem(new Dictionary<string, string[]>
                 {
                     [nameof(request.Reason)] = ["Ajuste exige motivo."],
                 });
             }
 
-            if (!await db.StockItems.AnyAsync(i => i.Id == id, ct))
+            db.StockMovements.Add(new StockMovement
+            {
+                StockItemId = id,
+                Type = tipo,
+                Quantity = quantidade,
+                AppointmentId = request.AppointmentId,
+                Reason = request.Reason?.Trim(),
+            });
+
+            await db.SaveChangesAsync(ct);
+
+            return Results.NoContent();
+        })
+        .WithName("RegistrarMovimentacao");
+
+        group.MapPost("/{id:guid}/abrir", async (Guid id, ClinicaDbContext db, CancellationToken ct) =>
+        {
+            var item = await db.StockItems.FirstOrDefaultAsync(i => i.Id == id, ct);
+
+            if (item is null)
             {
                 return Results.NotFound();
             }
 
-            var movimentacao = new StockMovement
+            // Abrir dá baixa da embalagem inteira. É o único registro que existe para
+            // esse tipo de insumo: o que acontece depois — quanto de creme se passa,
+            // quantas luvas rasgam — a clínica não mede, e inventar número seria pior.
+            db.StockMovements.Add(new StockMovement
             {
                 StockItemId = id,
-                Type = tipo,
-                Quantity = request.Quantity,
-                AppointmentId = request.AppointmentId,
-                Reason = request.Reason?.Trim(),
-            };
+                Type = StockMovementType.Saida,
+                Quantity = item.ContentPerUnit,
+                Reason = $"Abertura de {item.PurchaseUnit}",
+            });
 
-            db.StockMovements.Add(movimentacao);
             await db.SaveChangesAsync(ct);
 
-            return Results.Created($"/stock/{id}/movements/{movimentacao.Id}", movimentacao.Id);
+            return Results.NoContent();
         })
-        .WithName("RegistrarMovimentacao");
+        .WithName("AbrirEmbalagem");
 
         return app;
     }
 }
 
-public record SaveStockItemRequest(string Name, string Unit, decimal MinimumQuantity, bool? Active)
+public record SaveStockItemRequest(
+    string Name,
+    string Unit,
+    string PurchaseUnit,
+    decimal ContentPerUnit,
+    string ControlMode,
+    decimal MinimumQuantity,
+    bool? Active)
 {
     public Dictionary<string, string[]>? Validate()
     {
@@ -173,7 +231,23 @@ public record SaveStockItemRequest(string Name, string Unit, decimal MinimumQuan
 
         if (string.IsNullOrWhiteSpace(Unit))
         {
-            erros[nameof(Unit)] = ["Unidade e obrigatoria (ml, un, g, caixa)."];
+            erros[nameof(Unit)] = ["Unidade de consumo e obrigatoria (ml, par, un)."];
+        }
+
+        if (string.IsNullOrWhiteSpace(PurchaseUnit))
+        {
+            erros[nameof(PurchaseUnit)] = ["Unidade de compra e obrigatoria (frasco, caixa)."];
+        }
+
+        if (ContentPerUnit <= 0)
+        {
+            erros[nameof(ContentPerUnit)] = ["Conteudo por embalagem deve ser maior que zero."];
+        }
+
+        if (!Enum.TryParse<StockControlMode>(ControlMode, true, out _))
+        {
+            erros[nameof(ControlMode)] =
+                [$"Modo invalido. Use: {string.Join(", ", Enum.GetNames<StockControlMode>())}."];
         }
 
         if (MinimumQuantity < 0)
@@ -189,13 +263,20 @@ public record CreateStockMovementRequest(
     string Type,
     decimal Quantity,
     Guid? AppointmentId,
-    string? Reason);
+    string? Reason,
+    /// <summary>Quantidade veio em embalagens (2 frascos) em vez de conteúdo (20 ml).</summary>
+    bool InPurchaseUnits = false);
 
 public record StockItemResponse(
     Guid Id,
     string Name,
     string Unit,
+    string PurchaseUnit,
+    decimal ContentPerUnit,
+    string ControlMode,
     decimal Balance,
+    int ClosedPackages,
+    decimal OpenRemainder,
     decimal MinimumQuantity,
     bool Active)
 {

@@ -13,6 +13,9 @@ public class StockItemConfiguration : IEntityTypeConfiguration<StockItem>
 
         builder.Property(i => i.Name).HasMaxLength(150).IsRequired();
         builder.Property(i => i.Unit).HasMaxLength(20).IsRequired();
+        builder.Property(i => i.PurchaseUnit).HasMaxLength(20).IsRequired();
+        builder.Property(i => i.ContentPerUnit).HasPrecision(12, 3);
+        builder.Property(i => i.ControlMode).HasConversion<string>().HasMaxLength(20).IsRequired();
 
         // 3 casas: insumo em ml ou g raramente é número redondo.
         builder.Property(i => i.MinimumQuantity).HasPrecision(12, 3);

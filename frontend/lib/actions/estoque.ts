@@ -15,6 +15,9 @@ export async function criarItemDeEstoque(
   const resultado = await apiSend("/stock", "POST", {
     name: String(formulario.get("nome") ?? "").trim(),
     unit: String(formulario.get("unidade") ?? "").trim(),
+    purchaseUnit: String(formulario.get("embalagem") ?? "").trim(),
+    contentPerUnit: paraNumero(formulario.get("conteudo")),
+    controlMode: String(formulario.get("modo") ?? "Informado"),
     minimumQuantity: paraNumero(formulario.get("minimo")),
   });
 
@@ -31,8 +34,16 @@ export async function movimentarEstoque(formulario: FormData) {
   await apiSend(`/stock/${item}/movements`, "POST", {
     type: String(formulario.get("tipo") ?? "Entrada"),
     quantity: paraNumero(formulario.get("quantidade")),
+    // Entrada é sempre digitada como se compra ("2 frascos"); a conversão para
+    // conteúdo acontece no servidor, num lugar só.
+    inPurchaseUnits: formulario.get("tipo") === "Entrada",
     reason: String(formulario.get("motivo") ?? "").trim() || null,
   });
 
+  redirect("/estoque");
+}
+
+export async function abrirEmbalagem(formulario: FormData) {
+  await apiSend(`/stock/${String(formulario.get("item") ?? "")}/abrir`, "POST", {});
   redirect("/estoque");
 }

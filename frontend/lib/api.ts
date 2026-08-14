@@ -258,8 +258,15 @@ export type MembroDaEquipe = {
 export type ItemDeEstoque = {
   id: string;
   name: string;
+  /** Unidade de consumo: ml, par, un. */
   unit: string;
+  /** Unidade de compra: frasco, caixa. */
+  purchaseUnit: string;
+  contentPerUnit: number;
+  controlMode: "Informado" | "PorAbertura";
   balance: number;
+  closedPackages: number;
+  openRemainder: number;
   minimumQuantity: number;
   active: boolean;
   belowMinimum: boolean;

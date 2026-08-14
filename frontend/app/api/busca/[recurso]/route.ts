@@ -15,6 +15,9 @@ const RECURSOS: Record<string, string> = {
   procedimentos: "/procedures",
   profissionais: "/professionals",
   estoque: "/stock",
+  // Só o que a profissional consegue medir. Oferecer creme no fechamento do
+  // atendimento seria pedir um número que ela não tem.
+  "estoque-mensuravel": "/stock?modo=Informado",
 };
 
 export async function GET(
@@ -30,8 +33,11 @@ export async function GET(
 
   const termo = new URL(request.url).searchParams.get("q") ?? "";
 
+  // Alguns recursos já trazem filtro fixo no caminho; o separador depende disso.
+  const separador = caminho.includes("?") ? "&" : "?";
+
   const resultado = await apiFetch<unknown[]>(
-    `${caminho}?q=${encodeURIComponent(termo)}`,
+    `${caminho}${separador}q=${encodeURIComponent(termo)}`,
   );
 
   return Response.json(resultado);

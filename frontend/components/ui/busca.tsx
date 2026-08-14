@@ -22,7 +22,7 @@ export function Busca({
   obrigatorio = true,
 }: {
   name: string;
-  recurso: "pacientes" | "procedimentos" | "profissionais" | "estoque";
+  recurso: "pacientes" | "procedimentos" | "profissionais" | "estoque" | "estoque-mensuravel";
   label: string;
   placeholder?: string;
   aoEscolher?: (opcao: Opcao | null) => void;
@@ -173,7 +173,7 @@ function normalizar(recurso: string, dados: unknown[]): Opcao[] {
     );
   }
 
-  if (recurso === "estoque") {
+  if (recurso.startsWith("estoque")) {
     return (dados as { id: string; name: string; unit: string; balance: number }[]).map((i) => ({
       id: i.id,
       titulo: i.name,

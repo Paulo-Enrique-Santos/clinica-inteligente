@@ -22,7 +22,7 @@ export function Insumos() {
           <div className="flex-1">
             <Busca
               name="insumo"
-              recurso="estoque"
+              recurso="estoque-mensuravel"
               label={indice === 0 ? "Insumos utilizados" : ""}
               placeholder="Buscar item do estoque"
               obrigatorio={false}

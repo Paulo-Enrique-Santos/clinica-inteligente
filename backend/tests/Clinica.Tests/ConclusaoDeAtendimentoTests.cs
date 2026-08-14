@@ -102,6 +102,9 @@ public class ConclusaoDeAtendimentoTests(PostgresFixture postgres) : IAsyncLifet
         {
             name = $"Item da outra {Guid.NewGuid():N}"[..30],
             unit = "un",
+            purchaseUnit = "un",
+            contentPerUnit = 1m,
+            controlMode = "Informado",
             minimumQuantity = 0,
         });
         var itemDaOutra = await criado.Content.ReadFromJsonAsync<Guid>();
@@ -160,6 +163,9 @@ public class ConclusaoDeAtendimentoTests(PostgresFixture postgres) : IAsyncLifet
         {
             name = $"{nome} {Guid.NewGuid():N}"[..30],
             unit = unidade,
+            purchaseUnit = unidade,
+            contentPerUnit = 1m,
+            controlMode = "Informado",
             minimumQuantity = 0,
         });
         r.EnsureSuccessStatusCode();
